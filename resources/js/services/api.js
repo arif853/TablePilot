@@ -56,6 +56,8 @@ export default api;
 export const authAPI = {
     login: (data) => api.post('/auth/login', data),
     register: (data) => api.post('/auth/register', data),
+    verifyOtp: (data) => api.post('/auth/verify-otp', data),
+    resendOtp: (data) => api.post('/auth/resend-otp', data),
     me: () => api.get('/auth/me'),
     logout: () => api.post('/auth/logout'),
     refresh: () => api.post('/auth/refresh'),
@@ -254,6 +256,12 @@ export const adminAPI = {
         grant: (tenantId, data) => api.post(`/admin/tenants/${tenantId}/modules/grant`, data),
         revoke: (tenantId, data) => api.post(`/admin/tenants/${tenantId}/modules/revoke`, data),
         removeOverride: (tenantId, moduleKey) => api.delete(`/admin/tenants/${tenantId}/modules/${moduleKey}`),
+    },
+    tenantApplications: {
+        list: (params) => api.get('/admin/tenant-applications', { params }),
+        show: (id) => api.get(`/admin/tenant-applications/${id}`),
+        approve: (id, data) => api.post(`/admin/tenant-applications/${id}/approve`, data),
+        reject: (id, data) => api.post(`/admin/tenant-applications/${id}/reject`, data),
     },
     settlements: {
         list: (params) => api.get('/admin/settlements', { params }),

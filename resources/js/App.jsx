@@ -12,6 +12,7 @@ const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'));
 // Auth Pages
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const OtpVerificationPage = lazy(() => import('./pages/auth/OtpVerificationPage'));
 
 // Dashboard Pages
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -47,6 +48,7 @@ const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminTenantDetailPage = lazy(() => import('./pages/admin/AdminTenantDetailPage'));
 const AdminPlansPage = lazy(() => import('./pages/admin/AdminPlansPage'));
+const AdminTenantApplicationsPage = lazy(() => import('./pages/admin/AdminTenantApplicationsPage'));
 const AdminAnnouncementsPage = lazy(() => import('./pages/admin/AdminAnnouncementsPage'));
 const AdminSystemPage = lazy(() => import('./pages/admin/AdminSystemPage'));
 const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage'));
@@ -90,6 +92,7 @@ export default function App() {
                 {/* Auth Routes */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/verify-email" element={<OtpVerificationPage />} />
 
                 {/* Dashboard Routes */}
                 <Route
@@ -155,6 +158,11 @@ export default function App() {
                     <Route path="admin/tenants" element={
                         <ProtectedRoute roles={['super_admin']}>
                             <TenantsPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="admin/applications" element={
+                        <ProtectedRoute roles={['super_admin']}>
+                            <AdminTenantApplicationsPage />
                         </ProtectedRoute>
                     } />
                     <Route path="admin/tenants/:id" element={

@@ -54,6 +54,7 @@ const tenantMenuItems = [
 // Super Admin menu items
 const superAdminMenuItems = [
     { icon: HiOutlineHome, label: 'Dashboard', to: '/dashboard/admin', roles: ['super_admin'] },
+    { icon: HiOutlineClock, label: 'Applications', to: '/dashboard/admin/applications', roles: ['super_admin'] },
     { icon: HiOutlineOfficeBuilding, label: 'Tenants', to: '/dashboard/admin/tenants', roles: ['super_admin'] },
     { icon: HiOutlineCreditCard, label: 'Subscriptions', to: '/dashboard/admin/subscriptions', roles: ['super_admin'] },
     { icon: HiOutlineTicket, label: 'Plans', to: '/dashboard/admin/plans', roles: ['super_admin'] },

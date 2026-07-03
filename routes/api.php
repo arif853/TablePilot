@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\SettlementController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\Api\TableController;
+use App\Http\Controllers\Api\TenantApplicationController;
 use App\Http\Controllers\Api\TenantController;
 use App\Http\Controllers\Api\TenantModuleController;
 use App\Http\Controllers\Api\UserController;
@@ -90,6 +91,8 @@ $v1Routes = function () {
     Route::prefix('auth')->middleware('throttle:auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
+        Route::post('resend-otp', [AuthController::class, 'sendOtp']);
     });
 
     // Platform branding (public, no auth)
@@ -309,6 +312,9 @@ $v1Routes = function () {
             // Tenant management
             Route::apiResource('tenants', TenantController::class);
             Route::get('tenants-dashboard', [TenantController::class, 'dashboard']);
+            Route::apiResource('tenant-applications', TenantApplicationController::class)->only(['index', 'show']);
+            Route::post('tenant-applications/{id}/approve', [TenantApplicationController::class, 'approve']);
+            Route::post('tenant-applications/{id}/reject', [TenantApplicationController::class, 'reject']);
 
             // Subscriptions
             Route::apiResource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'show']);

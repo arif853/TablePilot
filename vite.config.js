@@ -32,7 +32,7 @@ export default defineConfig({
         }),
     ],
     root: 'resources/js',
-    base: '/build/',
+    base: '/',
     build: {
         outDir: '../../public/build',
         emptyOutDir: true,

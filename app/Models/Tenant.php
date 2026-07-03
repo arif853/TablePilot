@@ -8,6 +8,7 @@ use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\RestaurantTable;
 use App\Models\Settlement;
+use App\Models\TenantApplication;
 use App\Models\Subscription;
 use App\Models\TenantModuleOverride;
 use App\Models\User;
@@ -131,6 +132,11 @@ class Tenant extends Model
     public function invoiceCounter()
     {
         return $this->hasOne(InvoiceCounter::class);
+    }
+
+    public function application()
+    {
+        return $this->hasOne(TenantApplication::class);
     }
 
     public function activeSubscription()
