@@ -250,6 +250,7 @@ class TenantController extends BaseApiController
 
         // Subscription history
         $subscriptions = Subscription::withoutGlobalScopes()
+            ->with('plan:id,name')
             ->where('tenant_id', $id)
             ->orderByDesc('created_at')
             ->get();
@@ -279,7 +280,7 @@ class TenantController extends BaseApiController
             ->get();
 
         return $this->success([
-            'tenant' => $tenant->load(['activeSubscription', 'users']),
+            'tenant' => $tenant->load(['activeSubscription.plan:id,name', 'users']),
             'stats' => [
                 'total_orders' => $totalOrders,
                 'orders_this_month' => $ordersThisMonth,

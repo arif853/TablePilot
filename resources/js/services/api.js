@@ -21,6 +21,47 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Proactive token refresh. JWTs expire after JWT_TTL (60 min) and the refresh endpoint
+// requires a still-valid token, so renew shortly before expiry instead of logging
+// staff out mid-shift. Impersonation tokens are left to expire on purpose.
+const REFRESH_WINDOW_MS = 5 * 60 * 1000;
+let refreshInFlight = null;
+
+const tokenExpiryMs = (token) => {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return payload.exp ? payload.exp * 1000 : null;
+    } catch {
+        return null;
+    }
+};
+
+const refreshTokenIfExpiring = () => {
+    const { token, isImpersonating, setToken } = useAuthStore.getState();
+    if (!token || refreshInFlight || isImpersonating()) return;
+
+    const expiresAt = tokenExpiryMs(token);
+    if (!expiresAt || expiresAt - Date.now() > REFRESH_WINDOW_MS || expiresAt <= Date.now()) return;
+
+    refreshInFlight = api
+        .post('/auth/refresh')
+        .then(({ data }) => {
+            // Ignore if the user logged out or switched accounts meanwhile
+            if (useAuthStore.getState().token === token && data?.access_token) setToken(data.access_token);
+        })
+        .catch(() => {})
+        .finally(() => {
+            refreshInFlight = null;
+        });
+};
+
+if (typeof window !== 'undefined') {
+    setInterval(refreshTokenIfExpiring, 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshTokenIfExpiring();
+    });
+}
+
 // Response interceptor - handle auth errors
 api.interceptors.response.use(
     (response) => {
@@ -31,7 +72,7 @@ api.interceptors.response.use(
         return response;
     },
     (error) => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
             useAuthStore.getState().logout();
             window.location.href = '/login';
         }
@@ -50,6 +91,16 @@ api.interceptors.response.use(
 
 export default api;
 
+// First validation error if present, else the server message
+export const apiErrorMessage = (err, fallback = 'Something went wrong') => {
+    const errors = err?.response?.data?.errors;
+    if (errors && typeof errors === 'object') {
+        const first = Object.values(errors)[0];
+        if (Array.isArray(first) && first[0]) return first[0];
+    }
+    return err?.response?.data?.message || fallback;
+};
+
 // ==================== API Service Functions ====================
 
 // Auth
@@ -59,7 +110,11 @@ export const authAPI = {
     verifyOtp: (data) => api.post('/auth/verify-otp', data),
     resendOtp: (data) => api.post('/auth/resend-otp', data),
     me: () => api.get('/auth/me'),
-    logout: () => api.post('/auth/logout'),
+    // Capture the token now: callers clear the store right after, before the request interceptor runs
+    logout: () => {
+        const token = useAuthStore.getState().token;
+        return api.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` }, skipAuthRedirect: true });
+    },
     refresh: () => api.post('/auth/refresh'),
 };
 
@@ -157,6 +212,12 @@ export const settlementAPI = {
 };
 
 // Users
+export const profileAPI = {
+    get: () => api.get('/profile'),
+    update: (data) => api.put('/profile', data),
+    changePassword: (data) => api.put('/profile/password', data),
+};
+
 export const userAPI = {
     list: (params) => api.get('/users', { params }),
     create: (data) => api.post('/users', data),
@@ -217,9 +278,15 @@ export const contactAPI = {
 export const adminAPI = {
     tenants: {
         list: (params) => api.get('/admin/tenants', { params }),
+        options: () => api.get('/admin/tenants', { params: { all: 1 } }),
         create: (data) => api.post('/admin/tenants', data),
         show: (id) => api.get(`/admin/tenants/${id}`),
         update: (id, data) => api.put(`/admin/tenants/${id}`, data),
+        // Multipart (logo upload): PHP only parses file bodies on POST, so spoof the PUT
+        updateForm: (id, formData) => {
+            formData.append('_method', 'PUT');
+            return api.post(`/admin/tenants/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        },
         delete: (id) => api.delete(`/admin/tenants/${id}`),
         dashboard: () => api.get('/admin/tenants-dashboard'),
         stats: (id) => api.get(`/admin/tenants/${id}/stats`),
@@ -228,11 +295,17 @@ export const adminAPI = {
         bulkAction: (data) => api.post('/admin/tenants/bulk-action', data),
         export: () => api.get('/admin/tenants/export', { responseType: 'blob' }),
     },
+    users: {
+        list: (params) => api.get('/admin/users', { params }),
+        create: (data) => api.post('/admin/users', data),
+        update: (id, data) => api.put(`/admin/users/${id}`, data),
+        deactivate: (id) => api.delete(`/admin/users/${id}`),
+    },
     subscriptions: {
         list: (params) => api.get('/admin/subscriptions', { params }),
         create: (data) => api.post('/admin/subscriptions', data),
         show: (id) => api.get(`/admin/subscriptions/${id}`),
-        cancel: (id) => api.post(`/admin/subscriptions/${id}/cancel`),
+        cancel: (id, data) => api.post(`/admin/subscriptions/${id}/cancel`, data),
         expiringSoon: () => api.get('/admin/subscriptions/expiring-soon'),
         extend: (id, data) => api.post(`/admin/subscriptions/${id}/extend`, data),
         renew: (tenantId, data) => api.post(`/admin/subscriptions/${tenantId}/renew`, data),

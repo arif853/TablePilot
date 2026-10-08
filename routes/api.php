@@ -145,7 +145,7 @@ $v1Routes = function () {
     | Authenticated Routes
     |----------------------------------------------------------------------
     */
-    Route::middleware(['auth:api'])->group(function () {
+    Route::middleware(['auth:api', 'active'])->group(function () {
 
         // Auth management
         Route::prefix('auth')->group(function () {
@@ -191,28 +191,33 @@ $v1Routes = function () {
         */
         Route::middleware(['tenant', 'subscription'])->group(function () {
 
-            // Menu Items
-            Route::apiResource('menu-items', MenuItemController::class);
-            Route::patch('menu-items/{id}/toggle', [MenuItemController::class, 'toggleAvailability']);
-            Route::post('menu-items/{id}/restore', [MenuItemController::class, 'restore']);
-
-            // Categories
-            Route::apiResource('categories', CategoryController::class);
-
-            // Tables
-            Route::apiResource('tables', TableController::class);
-            Route::post('tables/transfer', [TableController::class, 'transfer']);
-            Route::get('tables/{id}/qr', [TableController::class, 'generateQrCode']);
+            // Read access for every restaurant role (POS and kitchen need menu, tables and orders)
+            Route::apiResource('menu-items', MenuItemController::class)->only(['index', 'show']);
+            Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
             Route::get('tables/parcel-qr', [TableController::class, 'generateParcelQr']);
-
-            // Vouchers
-            Route::middleware('module:voucher_system')->apiResource('vouchers', VoucherController::class);
+            Route::apiResource('tables', TableController::class)->only(['index', 'show']);
+            Route::get('tables/{id}/qr', [TableController::class, 'generateQrCode']);
 
             // Orders (restaurant-side management)
             Route::apiResource('orders', OrderController::class)->only(['index', 'show']);
             Route::patch('orders/{id}/status', [OrderController::class, 'updateStatus']);
-            Route::post('orders/{id}/cancel', [OrderController::class, 'cancel']);
-            Route::post('orders/{id}/mark-paid', [OrderController::class, 'markPaid']);
+
+            // Front-of-house actions: admin + staff (not kitchen)
+            Route::middleware('role:restaurant_admin,staff')->group(function () {
+                Route::post('tables/transfer', [TableController::class, 'transfer']);
+                Route::post('orders/{id}/cancel', [OrderController::class, 'cancel']);
+                Route::post('orders/{id}/mark-paid', [OrderController::class, 'markPaid']);
+            });
+
+            // Catalogue and floor-plan management: restaurant admin only
+            Route::middleware('role:restaurant_admin')->group(function () {
+                Route::apiResource('menu-items', MenuItemController::class)->only(['store', 'update', 'destroy']);
+                Route::patch('menu-items/{id}/toggle', [MenuItemController::class, 'toggleAvailability']);
+                Route::post('menu-items/{id}/restore', [MenuItemController::class, 'restore']);
+                Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
+                Route::apiResource('tables', TableController::class)->only(['store', 'update', 'destroy']);
+                Route::middleware('module:voucher_system')->apiResource('vouchers', VoucherController::class);
+            });
 
             // POS Terminal (staff + admin order creation)
             Route::middleware(['role:restaurant_admin,staff', 'module:pos'])->group(function () {

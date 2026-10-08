@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserController extends BaseApiController
 {
@@ -48,8 +49,21 @@ class UserController extends BaseApiController
         }
 
         $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+        $response = $this->paginated($query->latest(), $perPage);
 
-        return $this->paginated($query->latest(), $perPage);
+        // Seat usage for the tenant being viewed, so the UI can show "3 of 5 users"
+        $seatTenantId = $authUser->isSuperAdmin() ? $request->get('tenant_id') : $authUser->tenant_id;
+
+        if ($seatTenantId && ($tenant = Tenant::find($seatTenantId))) {
+            $payload = $response->getData(true);
+            $payload['seats'] = [
+                'used' => User::where('tenant_id', $tenant->id)->where('status', 'active')->count(),
+                'max' => $tenant->max_users,
+            ];
+            $response->setData($payload);
+        }
+
+        return $response;
     }
 
     /**
@@ -133,7 +147,8 @@ class UserController extends BaseApiController
                 'name' => 'sometimes|string|max:255',
                 'email' => "sometimes|email|unique:users,email,{$id}",
                 'password' => 'sometimes|string|min:8',
-                'role' => 'sometimes|in:staff,kitchen',
+                // Restaurant admins manage staff/kitchen roles; their own role can only be re-sent unchanged
+                'role' => ['sometimes', Rule::in($user->isRestaurantAdmin() ? [User::ROLE_RESTAURANT_ADMIN] : [User::ROLE_STAFF, User::ROLE_KITCHEN])],
                 'phone' => 'nullable|string|max:20',
                 'status' => 'sometimes|in:active,inactive',
             ]);
@@ -151,6 +166,18 @@ class UserController extends BaseApiController
 
         if ($user->isSuperAdmin() && array_intersect_key($validated, array_flip(['role', 'tenant_id', 'status']))) {
             return $this->error('Role, tenant and status of a super admin cannot be changed', 422);
+        }
+
+        $changesAccess = ($validated['role'] ?? $user->role) !== $user->role
+            || ($validated['status'] ?? $user->status) !== $user->status
+            || (int) ($validated['tenant_id'] ?? $user->tenant_id) !== (int) $user->tenant_id;
+
+        if ($changesAccess && $user->id === $authUser->id) {
+            return $this->error('You cannot change your own role, status or restaurant', 422);
+        }
+
+        if ($changesAccess && $this->isLastActiveRestaurantAdmin($user)) {
+            return $this->error('This is the restaurant\'s only active admin. Add or promote another admin first.', 422);
         }
 
         // Reactivating a user, or moving an active user to another tenant, takes a seat on that tenant
@@ -204,11 +231,31 @@ class UserController extends BaseApiController
             return $this->error('Cannot deactivate another admin', 422);
         }
 
+        if ($this->isLastActiveRestaurantAdmin($user)) {
+            return $this->error('This is the restaurant\'s only active admin. Add or promote another admin first.', 422);
+        }
+
         $user->update(['status' => 'inactive']);
 
         AuditLogger::logAction('user_deactivated', $user);
 
         return $this->success(null, 'User deactivated');
+    }
+
+    /**
+     * A tenant must always keep at least one active restaurant admin, or nobody can manage it.
+     */
+    private function isLastActiveRestaurantAdmin(User $user): bool
+    {
+        if (!$user->isRestaurantAdmin() || !$user->isActive() || !$user->tenant_id) {
+            return false;
+        }
+
+        return !User::where('tenant_id', $user->tenant_id)
+            ->where('role', User::ROLE_RESTAURANT_ADMIN)
+            ->where('status', 'active')
+            ->where('id', '!=', $user->id)
+            ->exists();
     }
 
     /**

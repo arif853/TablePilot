@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Module;
 use App\Models\SubscriptionPlan;
+use App\Services\ModulePermissionService;
 use Illuminate\Database\Seeder;
 
 class PlanModuleSeeder extends Seeder
@@ -77,13 +78,19 @@ class PlanModuleSeeder extends Seeder
             'enterprise' => $yearlyModules,
         ];
 
-        // Ensure all active plans have a module set.
+        // Ensure all active plans have a module set. Plans that already have modules are left alone
+        // so re-running this never overwrites selections made on the admin Plans page.
         SubscriptionPlan::query()->where('is_active', true)->get()->each(function (SubscriptionPlan $plan) use ($planModuleMap, $monthlyModules) {
+            if ($plan->modules()->exists()) {
+                return;
+            }
+
             $slug = strtolower((string) $plan->slug);
             $moduleKeys = $planModuleMap[$slug] ?? $monthlyModules;
             $moduleIds = Module::whereIn('key', $moduleKeys)->pluck('id');
 
             $plan->modules()->sync($moduleIds);
+            app(ModulePermissionService::class)->invalidatePlanCache($plan);
         });
     }
 }

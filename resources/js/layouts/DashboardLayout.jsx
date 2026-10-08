@@ -56,6 +56,7 @@ const superAdminMenuItems = [
     { icon: HiOutlineHome, label: 'Dashboard', to: '/dashboard/admin', roles: ['super_admin'] },
     { icon: HiOutlineClock, label: 'Applications', to: '/dashboard/admin/applications', roles: ['super_admin'] },
     { icon: HiOutlineOfficeBuilding, label: 'Tenants', to: '/dashboard/admin/tenants', roles: ['super_admin'] },
+    { icon: HiOutlineUsers, label: 'Users', to: '/dashboard/admin/users', roles: ['super_admin'] },
     { icon: HiOutlineCreditCard, label: 'Subscriptions', to: '/dashboard/admin/subscriptions', roles: ['super_admin'] },
     { icon: HiOutlineTicket, label: 'Plans', to: '/dashboard/admin/plans', roles: ['super_admin'] },
     { icon: HiOutlineCash, label: 'Financials', to: '/dashboard/admin/financials', roles: ['super_admin'] },
@@ -101,6 +102,8 @@ export default function DashboardLayout() {
     const notificationsRef = useRef(null);
 
     const handleLogout = () => {
+        // Blacklist the token server-side too; the local session is cleared regardless
+        authAPI.logout().catch(() => {});
         logout();
         clearModules();
         navigate('/login');
@@ -230,7 +233,7 @@ export default function DashboardLayout() {
                     <NavLink
                         key={item.to}
                         to={item.to}
-                        end={item.to === '/dashboard'}
+                        end={item.to === '/dashboard' || item.to === '/dashboard/admin'}
                         onClick={() => setSidebarOpen(false)}
                         title={collapsed ? item.label : undefined}
                         className={({ isActive }) =>
@@ -375,12 +378,21 @@ export default function DashboardLayout() {
                                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                     </div>
                                     <button
-                                        onClick={() => { setProfileOpen(false); navigate('/dashboard/settings'); }}
+                                        onClick={() => { setProfileOpen(false); navigate('/dashboard/profile'); }}
                                         className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         <HiOutlineUser className="w-4 h-4 mr-3 text-gray-400" />
-                                        Profile & Settings
+                                        My Profile
                                     </button>
+                                    {user?.role === 'restaurant_admin' && (
+                                        <button
+                                            onClick={() => { setProfileOpen(false); navigate('/dashboard/settings'); }}
+                                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <HiOutlineCog className="w-4 h-4 mr-3 text-gray-400" />
+                                            Restaurant Settings
+                                        </button>
+                                    )}
                                     <div className="border-t border-gray-100">
                                         <button
                                             onClick={handleLogout}

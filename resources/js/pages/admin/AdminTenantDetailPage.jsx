@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminAPI } from '../../services/api';
+import { adminAPI, apiErrorMessage } from '../../services/api';
+import EditTenantModal from '../../components/admin/EditTenantModal';
+import UserFormModal from '../../components/admin/UserFormModal';
+import { RenewSubscriptionModal, ExtendSubscriptionModal, CancelSubscriptionModal } from '../../components/admin/SubscriptionModals';
 import { useAuthStore } from '../../stores/authStore';
 import { useModuleStore } from '../../stores/moduleStore';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -31,6 +34,9 @@ export default function AdminTenantDetailPage() {
     const [targetModule, setTargetModule] = useState(null);
     const [emailData, setEmailData] = useState({ subject: '', message: '' });
     const [overrideData, setOverrideData] = useState({ reason: '', expires_at: '' });
+    const [showEdit, setShowEdit] = useState(false);
+    const [subAction, setSubAction] = useState(null); // 'renew' | 'extend' | 'cancel'
+    const [userForm, setUserForm] = useState(undefined); // undefined = closed, null = create, object = edit
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['admin-tenant-stats', id],
@@ -67,9 +73,21 @@ export default function AdminTenantDetailPage() {
     const toggleMutation = useMutation({
         mutationFn: ({ is_active }) => adminAPI.tenants.update(id, { is_active }),
         onSuccess: () => {
-            queryClient.invalidateQueries(['admin-tenant-stats', id]);
+            queryClient.invalidateQueries({ queryKey: ['admin-tenant-stats', id] });
+            queryClient.invalidateQueries({ queryKey: ['admin-tenants'] });
             toast.success('Tenant status updated');
         },
+        onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update tenant')),
+    });
+
+    const userStatusMutation = useMutation({
+        mutationFn: ({ userId, status }) => adminAPI.users.update(userId, { status }),
+        onSuccess: (_, { status }) => {
+            queryClient.invalidateQueries({ queryKey: ['admin-tenant-stats', id] });
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+            toast.success(status === 'active' ? 'User activated' : 'User deactivated');
+        },
+        onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update user')),
     });
 
     const grantMutation = useMutation({
@@ -107,6 +125,19 @@ export default function AdminTenantDetailPage() {
     if (error) return <div className="text-red-500">Error loading tenant details</div>;
 
     const { tenant, stats, subscriptions, revenue_trend } = data || {};
+    const currentSub = tenant?.active_subscription;
+    const daysLeft = currentSub ? Math.ceil((new Date(currentSub.expires_at) - new Date()) / 86400000) : null;
+
+    const handleToggleTenant = () => {
+        if (tenant?.is_active && !window.confirm(`Deactivate ${tenant.name}? Its staff will be locked out until reactivated.`)) return;
+        toggleMutation.mutate({ is_active: !tenant?.is_active });
+    };
+
+    const handleToggleUser = (user) => {
+        const status = user.status === 'active' ? 'inactive' : 'active';
+        if (status === 'inactive' && !window.confirm(`Deactivate ${user.name}?`)) return;
+        userStatusMutation.mutate({ userId: user.id, status });
+    };
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-BD', {
@@ -131,6 +162,9 @@ export default function AdminTenantDetailPage() {
     }, {});
 
     const getModuleStatusBadge = (module) => {
+        if (module.is_core) {
+            return <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">Active (Core)</span>;
+        }
         if (module.has_access && module.override_type === 'grant') {
             return <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">Active (Granted)</span>;
         }
@@ -190,6 +224,9 @@ export default function AdminTenantDetailPage() {
                     </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setShowEdit(true)} className="btn-secondary">
+                        Edit
+                    </button>
                     <button
                         onClick={() => setShowEmailModal(true)}
                         className="btn-secondary flex items-center gap-2"
@@ -206,7 +243,7 @@ export default function AdminTenantDetailPage() {
                         {impersonateMutation.isPending ? 'Loading...' : 'Impersonate'}
                     </button>
                     <button
-                        onClick={() => toggleMutation.mutate({ is_active: !tenant?.is_active })}
+                        onClick={handleToggleTenant}
                         className={`btn ${tenant?.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}`}
                     >
                         {tenant?.is_active ? 'Deactivate' : 'Activate'}
@@ -290,6 +327,40 @@ export default function AdminTenantDetailPage() {
                 </div>
             )}
 
+            {/* Current Plan */}
+            <div className={`rounded-xl p-5 border shadow-sm ${currentSub ? 'bg-white border-gray-100' : 'bg-red-50 border-red-100'}`}>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <p className="text-sm text-gray-500">Current Plan</p>
+                        {currentSub ? (
+                            <>
+                                <p className="text-lg font-semibold text-gray-900">
+                                    {currentSub.plan?.name || <span className="capitalize">{currentSub.plan_type}</span>}
+                                    {currentSub.is_trial && <span className="ml-2 align-middle px-2 py-0.5 text-xs rounded-full bg-sky-100 text-sky-700">Trial</span>}
+                                </p>
+                                <p className={`text-sm ${daysLeft <= 7 ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                                    Expires {new Date(currentSub.expires_at).toLocaleDateString()} ({daysLeft <= 0 ? 'today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`})
+                                    {' · '}max {tenant?.max_users} users
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-lg font-semibold text-red-700">No active subscription. Staff are locked out.</p>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button onClick={() => setSubAction('renew')} className="btn-primary text-sm">
+                            {currentSub ? 'Renew / Change Plan' : 'Add Subscription'}
+                        </button>
+                        {currentSub && (
+                            <>
+                                <button onClick={() => setSubAction('extend')} className="btn-secondary text-sm">Extend</button>
+                                <button onClick={() => setSubAction('cancel')} className="btn bg-red-50 text-red-600 hover:bg-red-100 text-sm">Cancel</button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+
             {/* Subscriptions History */}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
@@ -315,7 +386,10 @@ export default function AdminTenantDetailPage() {
                         <tbody>
                             {subscriptions?.map((sub) => (
                                 <tr key={sub.id} className="border-b last:border-0">
-                                    <td className="py-3 capitalize">{sub.plan_type}</td>
+                                    <td className="py-3 capitalize">
+                                        {sub.plan?.name || sub.plan_type}
+                                        {sub.is_trial && <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-sky-100 text-sky-700 normal-case">Trial</span>}
+                                    </td>
                                     <td className="py-3">{formatCurrency(sub.amount)}</td>
                                     <td className="py-3">{new Date(sub.starts_at).toLocaleDateString()}</td>
                                     <td className="py-3">{new Date(sub.expires_at).toLocaleDateString()}</td>
@@ -334,7 +408,17 @@ export default function AdminTenantDetailPage() {
 
             {/* Users */}
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="font-semibold text-gray-900 mb-4">Users</h3>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h3 className="font-semibold text-gray-900">
+                        Users <span className="text-sm font-normal text-gray-400">({stats?.active_users || 0}/{tenant?.max_users} active)</span>
+                    </h3>
+                    <div className="flex items-center gap-4">
+                        <Link to={`/dashboard/admin/users?tenant_id=${id}`} className="text-sm text-blue-600 hover:underline">
+                            Manage all →
+                        </Link>
+                        <button onClick={() => setUserForm(null)} className="btn-primary text-sm">+ Add User</button>
+                    </div>
+                </div>
                 <div className="space-y-3">
                     {tenant?.users?.map((user) => (
                         <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -347,11 +431,24 @@ export default function AdminTenantDetailPage() {
                                     <p className="text-sm text-gray-500">{user.email}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full capitalize">
-                                    {user.role?.replace('_', ' ')}
-                                </span>
-                                <p className="text-xs text-gray-400 mt-1">{user.status}</p>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full capitalize">
+                                        {user.role?.replace('_', ' ')}
+                                    </span>
+                                    <p className="text-xs text-gray-400 mt-1">{user.status}</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1 text-sm">
+                                    <button onClick={() => setUserForm(user)} className="text-blue-600 hover:underline">Edit</button>
+                                    {user.status !== 'pending' && (
+                                        <button
+                                            onClick={() => handleToggleUser(user)}
+                                            className={user.status === 'active' ? 'text-red-600 hover:underline' : 'text-green-600 hover:underline'}
+                                        >
+                                            {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -366,6 +463,10 @@ export default function AdminTenantDetailPage() {
 
                 {moduleLoading ? (
                     <LoadingSpinner />
+                ) : !moduleMatrix?.modules?.length ? (
+                    <p className="text-sm text-gray-500 py-4 text-center">
+                        No modules are registered on the platform. Run <code className="px-1 bg-gray-100 rounded">php artisan migrate</code> to install the module registry.
+                    </p>
                 ) : (
                     <div className="space-y-5">
                         {Object.entries(groupedModules).map(([group, modules]) => (
@@ -393,7 +494,9 @@ export default function AdminTenantDetailPage() {
                                                     <td className="py-2 capitalize">{module.override_type || '—'}</td>
                                                     <td className="py-2">{getModuleStatusBadge(module)}</td>
                                                     <td className="py-2">
-                                                        {module.override_type ? (
+                                                        {module.is_core ? (
+                                                            <span className="text-xs text-gray-400">Always on</span>
+                                                        ) : module.override_type ? (
                                                             <button
                                                                 onClick={() => removeOverrideMutation.mutate(module.key)}
                                                                 className="text-sm text-blue-600 hover:underline"
@@ -403,8 +506,7 @@ export default function AdminTenantDetailPage() {
                                                         ) : module.has_access ? (
                                                             <button
                                                                 onClick={() => openOverrideModal(module, 'revoke')}
-                                                                disabled={module.is_core}
-                                                                className="text-sm text-red-600 hover:underline disabled:opacity-40"
+                                                                className="text-sm text-red-600 hover:underline"
                                                             >
                                                                 Revoke
                                                             </button>
@@ -427,6 +529,32 @@ export default function AdminTenantDetailPage() {
                     </div>
                 )}
             </div>
+
+            <EditTenantModal tenant={tenant} isOpen={showEdit} onClose={() => setShowEdit(false)} />
+            <UserFormModal
+                user={userForm}
+                fixedTenant={tenant ? { id: tenant.id, name: tenant.name } : undefined}
+                isOpen={userForm !== undefined}
+                onClose={() => setUserForm(undefined)}
+            />
+            <RenewSubscriptionModal
+                tenant={tenant}
+                subscription={currentSub}
+                isOpen={subAction === 'renew'}
+                onClose={() => setSubAction(null)}
+            />
+            <ExtendSubscriptionModal
+                subscription={currentSub}
+                tenantName={tenant?.name}
+                isOpen={subAction === 'extend'}
+                onClose={() => setSubAction(null)}
+            />
+            <CancelSubscriptionModal
+                subscription={currentSub}
+                tenantName={tenant?.name}
+                isOpen={subAction === 'cancel'}
+                onClose={() => setSubAction(null)}
+            />
 
             {/* Send Email Modal */}
             <Modal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} title="Send Email to Tenant">

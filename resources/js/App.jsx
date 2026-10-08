@@ -54,6 +54,8 @@ const AdminSystemPage = lazy(() => import('./pages/admin/AdminSystemPage'));
 const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage'));
 const AdminEnquiriesPage = lazy(() => import('./pages/admin/AdminEnquiriesPage'));
 const AdminFinancialPage = lazy(() => import('./pages/admin/AdminFinancialPage'));
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage'));
+const ProfilePage = lazy(() => import('./pages/dashboard/ProfilePage'));
 
 function getDefaultDashboardPath(role) {
     if (role === 'super_admin') return '/dashboard/admin';
@@ -64,8 +66,8 @@ function getDefaultDashboardPath(role) {
 function DashboardIndexRoute() {
     const { user } = useAuthStore();
 
-    if (user?.role === 'super_admin') {
-        return <Navigate to="/dashboard/admin" replace />;
+    if (user?.role === 'super_admin' || user?.role === 'kitchen') {
+        return <Navigate to={getDefaultDashboardPath(user.role)} replace />;
     }
 
     return <DashboardPage />;
@@ -104,44 +106,45 @@ export default function App() {
                     }
                 >
                     <Route index element={<DashboardIndexRoute />} />
-                    <Route path="menu" element={<MenuItemsPage />} />
-                    <Route path="categories" element={<CategoriesPage />} />
-                    <Route path="tables" element={<TablesPage />} />
-                    <Route path="orders" element={<OrdersPage />} />
+                    <Route path="menu" element={<ProtectedRoute roles={['restaurant_admin']}><MenuItemsPage /></ProtectedRoute>} />
+                    <Route path="categories" element={<ProtectedRoute roles={['restaurant_admin']}><CategoriesPage /></ProtectedRoute>} />
+                    <Route path="tables" element={<ProtectedRoute roles={['restaurant_admin', 'staff']}><TablesPage /></ProtectedRoute>} />
+                    <Route path="orders" element={<ProtectedRoute roles={['restaurant_admin', 'staff']}><OrdersPage /></ProtectedRoute>} />
                     <Route
                         path="vouchers"
                         element={
-                            <ModuleGate module="voucher_system" fallback={<UpgradePrompt module="voucher_system" />} loading={<LoadingSpinner />}>
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="voucher_system" fallback={<UpgradePrompt module="voucher_system" />} loading={<LoadingSpinner />}>
                                 <VouchersPage />
-                            </ModuleGate>
+                            </ModuleGate></ProtectedRoute>
                         }
                     />
                     <Route
                         path="reports"
                         element={
-                            <ModuleGate module="reports_analytics" fallback={<UpgradePrompt module="reports_analytics" />} loading={<LoadingSpinner />}>
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="reports_analytics" fallback={<UpgradePrompt module="reports_analytics" />} loading={<LoadingSpinner />}>
                                 <ReportsPage />
-                            </ModuleGate>
+                            </ModuleGate></ProtectedRoute>
                         }
                     />
                     <Route
                         path="settlements"
                         element={
-                            <ModuleGate module="settlement_management" fallback={<UpgradePrompt module="settlement_management" />} loading={<LoadingSpinner />}>
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="settlement_management" fallback={<UpgradePrompt module="settlement_management" />} loading={<LoadingSpinner />}>
                                 <SettlementsPage />
-                            </ModuleGate>
+                            </ModuleGate></ProtectedRoute>
                         }
                     />
                     <Route
                         path="users"
                         element={
-                            <ModuleGate module="user_management" fallback={<UpgradePrompt module="user_management" />} loading={<LoadingSpinner />}>
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="user_management" fallback={<UpgradePrompt module="user_management" />} loading={<LoadingSpinner />}>
                                 <UsersPage />
-                            </ModuleGate>
+                            </ModuleGate></ProtectedRoute>
                         }
                     />
-                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="settings" element={<ProtectedRoute roles={['restaurant_admin']}><SettingsPage /></ProtectedRoute>} />
                     <Route path="subscription/renew" element={<SubscriptionRenewPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
                     <Route path="pos" element={
                         <ProtectedRoute roles={['restaurant_admin', 'staff']}>
                             <ModuleGate module="pos" fallback={<UpgradePrompt module="pos" />} loading={<LoadingSpinner />}>
@@ -168,6 +171,11 @@ export default function App() {
                     <Route path="admin/tenants/:id" element={
                         <ProtectedRoute roles={['super_admin']}>
                             <AdminTenantDetailPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="admin/users" element={
+                        <ProtectedRoute roles={['super_admin']}>
+                            <AdminUsersPage />
                         </ProtectedRoute>
                     } />
                     <Route path="admin/subscriptions" element={

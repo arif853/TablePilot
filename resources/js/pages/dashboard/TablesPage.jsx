@@ -15,6 +15,8 @@ export default function TablesPage() {
     const [showQr, setShowQr] = useState(null);
     const [editing, setEditing] = useState(null);
     const { user } = useAuthStore();
+    // Staff can view, transfer and print QR codes; only admins change the floor plan
+    const isAdmin = user?.role === 'restaurant_admin';
 
     const { data: tables, isLoading } = useQuery({
         queryKey: ['tables'],
@@ -73,7 +75,9 @@ export default function TablesPage() {
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Tables</h2>
                 <div className="flex gap-2">
                     <button onClick={() => setShowTransfer(true)} className="btn-secondary text-sm sm:text-base">Transfer</button>
-                    <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary text-sm sm:text-base">+ Add Table</button>
+                    {isAdmin && (
+                        <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary text-sm sm:text-base">+ Add Table</button>
+                    )}
                 </div>
             </div>
 
@@ -88,8 +92,12 @@ export default function TablesPage() {
                         )}
                         <div className="flex justify-center gap-2 mt-3 pt-3 border-t">
                             <button onClick={() => handleShowQr(table)} className="text-xs text-blue-600">QR</button>
-                            <button onClick={() => { setEditing(table); setShowForm(true); }} className="text-xs text-gray-600">Edit</button>
-                            <button onClick={() => { if (confirm('Delete?')) deleteMutation.mutate(table.id); }} className="text-xs text-red-600">Del</button>
+                            {isAdmin && (
+                                <>
+                                    <button onClick={() => { setEditing(table); setShowForm(true); }} className="text-xs text-gray-600">Edit</button>
+                                    <button onClick={() => { if (confirm('Delete?')) deleteMutation.mutate(table.id); }} className="text-xs text-red-600">Del</button>
+                                </>
+                            )}
                         </div>
                     </div>
                 ))}

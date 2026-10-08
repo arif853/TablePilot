@@ -9,6 +9,12 @@
       "url": "http://192.168.0.165:3000"
     },
     {
+      "name": "frontend-local",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "127.0.0.1", "--port", "5180", "--strictPort"],
+      "port": 5180
+    },
+    {
       "name": "backend",
       "url": "http://backend.test"
     }

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { kitchenAPI } from '../../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { kitchenAPI, authAPI } from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
+import { useModuleStore } from '../../stores/moduleStore';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -15,6 +18,16 @@ const STATUS_COLORS = {
 export default function KitchenDisplayPage() {
     const queryClient = useQueryClient();
     const audioRef = useRef(null);
+    const navigate = useNavigate();
+    const { user, logout } = useAuthStore();
+    const clearModules = useModuleStore((s) => s.clear);
+
+    const handleLogout = () => {
+        authAPI.logout().catch(() => {});
+        logout();
+        clearModules();
+        navigate('/login');
+    };
 
     const { data, isLoading } = useQuery({
         queryKey: ['kitchen-orders'],
@@ -59,6 +72,16 @@ export default function KitchenDisplayPage() {
             </audio>
 
             {/* Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 text-sm text-gray-400">
+                <span>Signed in as <span className="text-gray-200 font-medium">{user?.name}</span></span>
+                <div className="flex gap-4">
+                    {user?.role !== 'kitchen' && (
+                        <Link to="/dashboard" className="hover:text-white">Dashboard</Link>
+                    )}
+                    <Link to="/dashboard/profile" className="hover:text-white">My Profile</Link>
+                    <button onClick={handleLogout} className="text-red-400 hover:text-red-300">Logout</button>
+                </div>
+            </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h1 className="text-xl sm:text-2xl font-bold">Kitchen Display</h1>
                 <div className="flex gap-2 sm:gap-4 text-xs sm:text-sm flex-wrap">

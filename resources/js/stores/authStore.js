@@ -16,6 +16,8 @@ export const useAuthStore = create(
                 });
             },
 
+            setToken: (token) => set({ token }),
+
             updateUser: (userData) => {
                 set((state) => ({
                     user: { ...state.user, ...userData },

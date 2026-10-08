@@ -25,6 +25,14 @@ class User extends Authenticatable implements JWTSubject
         self::ROLE_KITCHEN,
     ];
 
+    /**
+     * Mirror the column default so a freshly created model reports its real status
+     * (EnsureUserIsActive checks it on every request).
+     */
+    protected $attributes = [
+        'status' => 'active',
+    ];
+
     protected $fillable = [
         'tenant_id',
         'name',
