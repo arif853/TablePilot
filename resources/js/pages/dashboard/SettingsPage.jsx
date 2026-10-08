@@ -37,7 +37,7 @@ function ImageUpload({ label, currentImage, fieldName, onFileSelect, onRemove, h
                     <button
                         type="button"
                         onClick={() => inputRef.current?.click()}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-brand-50 text-brand-800 rounded-lg hover:bg-brand-100"
                     >
                         <HiOutlineUpload className="w-4 h-4" /> Upload
                     </button>
@@ -165,8 +165,8 @@ function BrandingTab() {
                 <p className="text-sm text-gray-500 mb-4">These colors are used on the customer ordering page.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { key: 'primary_color', label: 'Primary', default: '#3B82F6' },
-                        { key: 'secondary_color', label: 'Secondary', default: '#1E40AF' },
+                        { key: 'primary_color', label: 'Primary', default: '#ED802A' },
+                        { key: 'secondary_color', label: 'Secondary', default: '#B8560E' },
                         { key: 'accent_color', label: 'Accent', default: '#F59E0B' },
                     ].map((c) => (
                         <div key={c.key}>
@@ -181,8 +181,8 @@ function BrandingTab() {
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm text-gray-500 mb-3">Customer Panel Preview:</p>
                     <div className="flex gap-3 items-center flex-wrap">
-                        <div className="h-9 px-5 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.primary_color || '#3B82F6' }}>Add to Cart</div>
-                        <div className="h-9 px-5 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.secondary_color || '#1E40AF' }}>View Cart</div>
+                        <div className="h-9 px-5 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.primary_color || '#ED802A' }}>Add to Cart</div>
+                        <div className="h-9 px-5 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.secondary_color || '#B8560E' }}>View Cart</div>
                         <div className="h-9 px-5 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.accent_color || '#F59E0B' }}>Special Offer</div>
                     </div>
                 </div>
@@ -361,7 +361,7 @@ function VatSettingsTab() {
                         <button
                             type="button"
                             onClick={() => setForm((p) => ({ ...p, vat_registered: !p.vat_registered }))}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.vat_registered ? 'bg-blue-600' : 'bg-gray-300'}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.vat_registered ? 'bg-brand-600' : 'bg-gray-300'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.vat_registered ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
@@ -405,24 +405,24 @@ function VatSettingsTab() {
                         <button
                             type="button"
                             onClick={() => setForm((p) => ({ ...p, vat_inclusive: !p.vat_inclusive }))}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.vat_inclusive ? 'bg-blue-600' : 'bg-gray-300'}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.vat_inclusive ? 'bg-brand-600' : 'bg-gray-300'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.vat_inclusive ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
                     </div>
 
                     {/* Preview */}
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm font-medium text-blue-800 mb-2">Calculation Preview (item priced ৳100)</p>
+                    <div className="p-4 bg-brand-50 border border-brand-200 rounded-lg">
+                        <p className="text-sm font-medium text-brand-900 mb-2">Calculation Preview (item priced ৳100)</p>
                         {form.vat_inclusive ? (
-                            <div className="text-sm text-blue-700 space-y-0.5">
+                            <div className="text-sm text-brand-800 space-y-0.5">
                                 <p>Price shown: ৳100.00 (VAT included)</p>
                                 <p>VAT ({form.default_vat_rate}%): ৳{(100 * parseFloat(form.default_vat_rate || 0) / (100 + parseFloat(form.default_vat_rate || 0))).toFixed(2)}</p>
                                 <p>Net: ৳{(100 - 100 * parseFloat(form.default_vat_rate || 0) / (100 + parseFloat(form.default_vat_rate || 0))).toFixed(2)}</p>
                                 <p className="font-bold">Customer pays: ৳100.00</p>
                             </div>
                         ) : (
-                            <div className="text-sm text-blue-700 space-y-0.5">
+                            <div className="text-sm text-brand-800 space-y-0.5">
                                 <p>Price shown: ৳100.00 (excl. VAT)</p>
                                 <p>VAT ({form.default_vat_rate}%): ৳{(100 * parseFloat(form.default_vat_rate || 0) / 100).toFixed(2)}</p>
                                 <p className="font-bold">Customer pays: ৳{(100 + 100 * parseFloat(form.default_vat_rate || 0) / 100).toFixed(2)}</p>
@@ -462,7 +462,7 @@ export default function SettingsPage() {
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                             activeTab === tab.id
-                                ? 'bg-white text-blue-700 shadow-sm'
+                                ? 'bg-white text-brand-800 shadow-sm'
                                 : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >

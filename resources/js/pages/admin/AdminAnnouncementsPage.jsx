@@ -172,7 +172,7 @@ export default function AdminAnnouncementsPage() {
                                     </div>
                                 </td>
                                 <td className="px-4 py-3">
-                                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+                                    <span className="px-2 py-1 bg-brand-50 text-brand-800 rounded-full text-xs">
                                         {getTypeLabel(announcement.type)}
                                     </span>
                                 </td>
@@ -328,7 +328,7 @@ export default function AdminAnnouncementsPage() {
                                                     });
                                                 }
                                             }}
-                                            className="w-4 h-4 text-blue-600 rounded"
+                                            className="w-4 h-4 text-brand-700 rounded"
                                         />
                                         <span className="text-sm">{tenant.name}</span>
                                     </label>

@@ -41,7 +41,32 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A tenant on an active plan with every module, plus its restaurant admin.
+ *
+ * @return array{0: \App\Models\Tenant, 1: \App\Models\User}
+ */
+function restaurantWithAdmin(int $maxUsers = 5): array
 {
-    // ..
+    $plan = \App\Models\SubscriptionPlan::factory()->create(['max_users' => $maxUsers]);
+    $plan->modules()->sync(\App\Models\Module::pluck('id'));
+
+    $tenant = \App\Models\Tenant::factory()->create(['max_users' => $maxUsers]);
+    \App\Models\Subscription::factory()->create([
+        'tenant_id' => $tenant->id,
+        'plan_id' => $plan->id,
+        'status' => 'active',
+        'starts_at' => now()->subDay(),
+        'expires_at' => now()->addMonth(),
+    ]);
+
+    $admin = \App\Models\User::factory()->restaurantAdmin()->create(['tenant_id' => $tenant->id]);
+
+    return [$tenant, $admin];
+}
+
+/** Authorization header for an API request as the given user. */
+function bearer(\App\Models\User $user): array
+{
+    return ['Authorization' => 'Bearer ' . \PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::fromUser($user)];
 }

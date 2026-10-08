@@ -63,7 +63,7 @@ export default function ReportsPage() {
             <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
                 {tabs.map((t) => (
                     <button key={t.key} onClick={() => setTab(t.key)}
-                        className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${tab === t.key ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${tab === t.key ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                         {t.label}
                     </button>
                 ))}
@@ -174,7 +174,7 @@ export default function ReportsPage() {
                                     <div className="card"><p className="text-xs text-gray-500">Total Orders</p><p className="text-xl font-bold">{vatDailyData.summary?.total_orders ?? 0}</p></div>
                                     <div className="card"><p className="text-xs text-gray-500">Total Sales</p><p className="text-xl font-bold text-green-600">৳{parseFloat(vatDailyData.summary?.total_sales ?? 0).toFixed(2)}</p></div>
                                     <div className="card"><p className="text-xs text-gray-500">Net Amount</p><p className="text-xl font-bold">৳{parseFloat(vatDailyData.summary?.total_net ?? 0).toFixed(2)}</p></div>
-                                    <div className="card"><p className="text-xs text-gray-500">VAT Collected</p><p className="text-xl font-bold text-blue-600">৳{parseFloat(vatDailyData.summary?.total_vat ?? 0).toFixed(2)}</p></div>
+                                    <div className="card"><p className="text-xs text-gray-500">VAT Collected</p><p className="text-xl font-bold text-brand-700">৳{parseFloat(vatDailyData.summary?.total_vat ?? 0).toFixed(2)}</p></div>
                                 </div>
                                 {vatDailyData.by_payment_method?.length > 0 && (
                                     <div className="card mb-4">
@@ -235,7 +235,7 @@ export default function ReportsPage() {
                                     <div className="card"><p className="text-xs text-gray-500">Total Orders</p><p className="text-xl font-bold">{vatMonthlyData.summary?.total_orders ?? 0}</p></div>
                                     <div className="card"><p className="text-xs text-gray-500">Total Sales</p><p className="text-xl font-bold text-green-600">৳{parseFloat(vatMonthlyData.summary?.total_sales ?? 0).toFixed(2)}</p></div>
                                     <div className="card"><p className="text-xs text-gray-500">Total Net</p><p className="text-xl font-bold">৳{parseFloat(vatMonthlyData.summary?.total_net ?? 0).toFixed(2)}</p></div>
-                                    <div className="card"><p className="text-xs text-gray-500">Total VAT</p><p className="text-xl font-bold text-blue-600">৳{parseFloat(vatMonthlyData.summary?.total_vat ?? 0).toFixed(2)}</p></div>
+                                    <div className="card"><p className="text-xs text-gray-500">Total VAT</p><p className="text-xl font-bold text-brand-700">৳{parseFloat(vatMonthlyData.summary?.total_vat ?? 0).toFixed(2)}</p></div>
                                 </div>
                                 {vatMonthlyData.daily_breakdown?.length > 0 && (
                                     <div className="card mb-4">

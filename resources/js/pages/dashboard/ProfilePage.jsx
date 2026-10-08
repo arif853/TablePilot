@@ -65,7 +65,7 @@ export default function ProfilePage() {
 
             <div className="card">
                 <div className="flex items-center gap-4 mb-6">
-                    <div className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl font-semibold">
+                    <div className="w-14 h-14 bg-brand-600 rounded-full flex items-center justify-center text-white text-xl font-semibold">
                         {profile?.name?.[0]?.toUpperCase()}
                     </div>
                     <div>

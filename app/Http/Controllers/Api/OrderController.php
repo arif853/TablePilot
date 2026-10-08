@@ -236,6 +236,11 @@ class OrderController extends BaseApiController
             return $this->notFound('Order not found');
         }
 
+        // Public branding only, so the tracking page can wear the restaurant's colours
+        $order->setRelation('restaurant', Tenant::withoutGlobalScopes()
+            ->select(['name', 'slug', 'logo', 'primary_color', 'secondary_color'])
+            ->find($order->tenant_id));
+
         return $this->success($order);
     }
 

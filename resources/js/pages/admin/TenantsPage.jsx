@@ -201,8 +201,8 @@ export default function TenantsPage() {
 
             {/* Bulk actions */}
             {selected.length > 0 && (
-                <div className="flex flex-wrap items-center gap-3 mb-4 px-4 py-2.5 rounded-lg bg-blue-50 text-sm">
-                    <span className="font-medium text-blue-900">{selected.length} selected</span>
+                <div className="flex flex-wrap items-center gap-3 mb-4 px-4 py-2.5 rounded-lg bg-brand-50 text-sm">
+                    <span className="font-medium text-brand-950">{selected.length} selected</span>
                     <button onClick={() => handleBulk('activate')} disabled={bulkMutation.isPending} className="text-green-700 font-medium hover:underline">Activate</button>
                     <button onClick={() => handleBulk('deactivate')} disabled={bulkMutation.isPending} className="text-red-600 font-medium hover:underline">Deactivate</button>
                     <button onClick={() => setSelected([])} className="ml-auto text-gray-500 hover:underline">Clear</button>
@@ -238,7 +238,7 @@ export default function TenantsPage() {
                                             <input type="checkbox" checked={selected.includes(t.id)} onChange={() => toggleSelected(t.id)} aria-label={`Select ${t.name}`} />
                                         </td>
                                         <td className="py-3">
-                                            <Link to={`/dashboard/admin/tenants/${t.id}`} className="font-medium text-gray-900 hover:text-blue-600">
+                                            <Link to={`/dashboard/admin/tenants/${t.id}`} className="font-medium text-gray-900 hover:text-brand-700">
                                                 {t.name}
                                             </Link>
                                             <p className="text-xs text-gray-400">{t.email}</p>
@@ -246,7 +246,7 @@ export default function TenantsPage() {
                                         </td>
                                         <td className="py-3"><SubscriptionCell subscription={t.active_subscription} /></td>
                                         <td className="py-3">
-                                            <Link to={`/dashboard/admin/users?tenant_id=${t.id}`} className="hover:text-blue-600">
+                                            <Link to={`/dashboard/admin/users?tenant_id=${t.id}`} className="hover:text-brand-700">
                                                 {t.users_count} / {t.max_users}
                                             </Link>
                                         </td>
@@ -257,8 +257,8 @@ export default function TenantsPage() {
                                         <td className="py-3"><StatusBadge status={t.is_active ? 'active' : 'inactive'} /></td>
                                         <td className="py-3">
                                             <div className="flex justify-end gap-3 whitespace-nowrap">
-                                                <button onClick={() => setEditTenant(t)} className="text-blue-600 hover:underline">Edit</button>
-                                                <button onClick={() => setRenewTenant(t)} className="text-blue-600 hover:underline">Renew</button>
+                                                <button onClick={() => setEditTenant(t)} className="text-brand-700 hover:underline">Edit</button>
+                                                <button onClick={() => setRenewTenant(t)} className="text-brand-700 hover:underline">Renew</button>
                                                 <button
                                                     onClick={() => handleToggle(t)}
                                                     className={t.is_active ? 'text-red-600 hover:underline' : 'text-green-600 hover:underline'}
@@ -291,8 +291,8 @@ export default function TenantsPage() {
                                 <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
                                     <span className="text-gray-500">{t.users_count}/{t.max_users} users</span>
                                     <div className="flex gap-3">
-                                        <button onClick={() => setEditTenant(t)} className="text-blue-600 font-medium">Edit</button>
-                                        <button onClick={() => setRenewTenant(t)} className="text-blue-600 font-medium">Renew</button>
+                                        <button onClick={() => setEditTenant(t)} className="text-brand-700 font-medium">Edit</button>
+                                        <button onClick={() => setRenewTenant(t)} className="text-brand-700 font-medium">Renew</button>
                                         <button onClick={() => handleToggle(t)} className={`font-medium ${t.is_active ? 'text-red-600' : 'text-green-600'}`}>
                                             {t.is_active ? 'Deactivate' : 'Activate'}
                                         </button>

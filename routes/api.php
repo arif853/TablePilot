@@ -195,6 +195,7 @@ $v1Routes = function () {
             Route::apiResource('menu-items', MenuItemController::class)->only(['index', 'show']);
             Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
             Route::get('tables/parcel-qr', [TableController::class, 'generateParcelQr']);
+            Route::get('tables/qr-codes', [TableController::class, 'qrCodes']);
             Route::apiResource('tables', TableController::class)->only(['index', 'show']);
             Route::get('tables/{id}/qr', [TableController::class, 'generateQrCode']);
 

@@ -102,7 +102,7 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
                 <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-2xl">
                     <h3 className="font-bold text-gray-800">Invoice</h3>
                     <div className="flex gap-2">
-                        <button onClick={handlePrint} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <button onClick={handlePrint} className="flex items-center gap-1 px-3 py-1.5 text-sm bg-restaurant text-on-restaurant rounded-lg hover:opacity-90">
                             <HiOutlinePrinter className="w-4 h-4" /> Print
                         </button>
                         <button onClick={onClose} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">

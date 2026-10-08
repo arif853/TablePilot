@@ -1,42 +1,13 @@
 <?php
 
 use App\Models\Category;
-use App\Models\Subscription;
-use App\Models\SubscriptionPlan;
-use App\Models\Tenant;
 use App\Models\User;
-use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use function Pest\Laravel\deleteJson;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\putJson;
 
-/**
- * A tenant on an active plan that includes user management, with one restaurant admin.
- */
-function restaurantWithAdmin(int $maxUsers = 5): array
-{
-    $plan = SubscriptionPlan::factory()->create(['max_users' => $maxUsers]);
-    $plan->modules()->sync(\App\Models\Module::pluck('id'));
-
-    $tenant = Tenant::factory()->create(['max_users' => $maxUsers]);
-    Subscription::factory()->create([
-        'tenant_id' => $tenant->id,
-        'plan_id' => $plan->id,
-        'status' => 'active',
-        'starts_at' => now()->subDay(),
-        'expires_at' => now()->addMonth(),
-    ]);
-
-    $admin = User::factory()->restaurantAdmin()->create(['tenant_id' => $tenant->id]);
-
-    return [$tenant, $admin];
-}
-
-function bearer(User $user): array
-{
-    return ['Authorization' => 'Bearer ' . JWTAuth::fromUser($user)];
-}
+// restaurantWithAdmin() and bearer() live in tests/Pest.php
 
 test('staff and kitchen can read the menu but cannot change it', function () {
     [$tenant] = restaurantWithAdmin();

@@ -1,4 +1,4 @@
-# Restaurant SaaS Platform - Documentation
+# TablePilot - Documentation
 
 A multi-tenant SaaS platform for restaurant management with order tracking, subscription billing, and real-time kitchen display.
 
@@ -749,7 +749,7 @@ export const adminAPI = {
 
 ```env
 # Application
-APP_NAME="Restaurant SaaS"
+APP_NAME="TablePilot"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com

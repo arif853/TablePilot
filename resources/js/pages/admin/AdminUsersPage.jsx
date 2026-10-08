@@ -93,7 +93,7 @@ export default function AdminUsersPage() {
                     {filteredTenant && (
                         <p className="text-sm text-gray-500">
                             Showing users of{' '}
-                            <Link to={`/dashboard/admin/tenants/${filteredTenant.id}`} className="text-blue-600 hover:underline">
+                            <Link to={`/dashboard/admin/tenants/${filteredTenant.id}`} className="text-brand-700 hover:underline">
                                 {filteredTenant.name}
                             </Link>
                         </p>
@@ -158,7 +158,7 @@ export default function AdminUsersPage() {
                                         </td>
                                         <td className="py-3">
                                             {u.tenant ? (
-                                                <Link to={`/dashboard/admin/tenants/${u.tenant.id}`} className="hover:text-blue-600">{u.tenant.name}</Link>
+                                                <Link to={`/dashboard/admin/tenants/${u.tenant.id}`} className="hover:text-brand-700">{u.tenant.name}</Link>
                                             ) : (
                                                 <span className="text-gray-400">—</span>
                                             )}
@@ -168,7 +168,7 @@ export default function AdminUsersPage() {
                                         <td className="py-3 text-gray-500">{new Date(u.created_at).toLocaleDateString()}</td>
                                         <td className="py-3">
                                             <div className="flex justify-end gap-3 whitespace-nowrap">
-                                                <button onClick={() => setFormUser(u)} className="text-blue-600 hover:underline">Edit</button>
+                                                <button onClick={() => setFormUser(u)} className="text-brand-700 hover:underline">Edit</button>
                                                 {canToggle(u) && (
                                                     <button
                                                         onClick={() => handleToggleStatus(u)}
@@ -200,7 +200,7 @@ export default function AdminUsersPage() {
                                     {ROLE_LABELS[u.role] || u.role}{u.tenant ? ` · ${u.tenant.name}` : ''}
                                 </p>
                                 <div className="flex justify-end gap-4 mt-3 pt-3 border-t text-sm">
-                                    <button onClick={() => setFormUser(u)} className="text-blue-600 font-medium">Edit</button>
+                                    <button onClick={() => setFormUser(u)} className="text-brand-700 font-medium">Edit</button>
                                     {canToggle(u) && (
                                         <button onClick={() => handleToggleStatus(u)} className={`font-medium ${u.status === 'active' ? 'text-red-600' : 'text-green-600'}`}>
                                             {u.status === 'active' ? 'Deactivate' : 'Activate'}

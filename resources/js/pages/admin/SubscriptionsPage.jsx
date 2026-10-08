@@ -22,10 +22,10 @@ const EXPIRING_GROUPS = [
 function RowActions({ subscription, onAction }) {
     return (
         <div className="flex justify-end gap-3 whitespace-nowrap text-sm">
-            <button onClick={() => onAction('renew', subscription)} className="text-blue-600 hover:underline font-medium">Renew</button>
+            <button onClick={() => onAction('renew', subscription)} className="text-brand-700 hover:underline font-medium">Renew</button>
             {isLive(subscription) && (
                 <>
-                    <button onClick={() => onAction('extend', subscription)} className="text-blue-600 hover:underline font-medium">Extend</button>
+                    <button onClick={() => onAction('extend', subscription)} className="text-brand-700 hover:underline font-medium">Extend</button>
                     <button onClick={() => onAction('cancel', subscription)} className="text-red-600 hover:underline font-medium">Cancel</button>
                 </>
             )}
@@ -137,7 +137,7 @@ export default function SubscriptionsPage() {
                         key={t.key}
                         onClick={() => setParam('tab', t.key === 'all' ? '' : t.key)}
                         className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-                            tab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                            tab === t.key ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700'
                         }`}
                     >
                         {t.label}
@@ -160,7 +160,7 @@ export default function SubscriptionsPage() {
                                     {rows.map((s) => (
                                         <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                                             <div className="min-w-0">
-                                                <Link to={`/dashboard/admin/tenants/${s.tenant_id}`} className="font-medium text-gray-900 hover:text-blue-600">
+                                                <Link to={`/dashboard/admin/tenants/${s.tenant_id}`} className="font-medium text-gray-900 hover:text-brand-700">
                                                     {s.tenant?.name}
                                                 </Link>
                                                 <p className="text-xs text-gray-500">
@@ -194,7 +194,7 @@ export default function SubscriptionsPage() {
                             <option value="pending_review">Pending review</option>
                         </select>
                         {filteredTenant && (
-                            <Link to={`/dashboard/admin/tenants/${filteredTenant.id}`} className="self-center text-sm text-blue-600 hover:underline">
+                            <Link to={`/dashboard/admin/tenants/${filteredTenant.id}`} className="self-center text-sm text-brand-700 hover:underline">
                                 Open {filteredTenant.name} →
                             </Link>
                         )}
@@ -219,7 +219,7 @@ export default function SubscriptionsPage() {
                                         {subscriptions.map((s) => (
                                             <tr key={s.id} className="border-b last:border-0">
                                                 <td className="py-3 font-medium">
-                                                    <Link to={`/dashboard/admin/tenants/${s.tenant_id}`} className="hover:text-blue-600">{s.tenant?.name}</Link>
+                                                    <Link to={`/dashboard/admin/tenants/${s.tenant_id}`} className="hover:text-brand-700">{s.tenant?.name}</Link>
                                                 </td>
                                                 <td className="py-3 capitalize">
                                                     {s.plan?.name || s.plan_type}

@@ -215,9 +215,10 @@ export default function DashboardLayout() {
                     {branding.platform_logo ? (
                         <img src={`/storage/${branding.platform_logo}`} alt={branding.platform_name} className="h-8" />
                     ) : (
-                        <img src="/assets/images/logo.png" alt="Logo" className="h-8" />
+                        <img src="/assets/images/tablepilot-mark.svg" alt={branding.platform_name} className="h-8 w-8" />
                     )}
-                    {!collapsed && branding.platform_name && (
+                    {/* An uploaded platform logo is a full wordmark; only spell the name next to the bare mark */}
+                    {!collapsed && !branding.platform_logo && branding.platform_name && (
                         <span className="ml-2 text-sm font-bold text-gray-800 truncate hidden lg:inline">{branding.platform_name}</span>
                     )}
                 </div>
@@ -239,7 +240,7 @@ export default function DashboardLayout() {
                         className={({ isActive }) =>
                             `flex items-center ${collapsed ? 'justify-center px-2' : 'px-3'} py-2.5 text-sm font-medium rounded-lg transition-colors ${
                                 isActive
-                                    ? 'bg-blue-50 text-blue-700'
+                                    ? 'bg-brand-50 text-brand-800'
                                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                             }`
                         }
@@ -362,7 +363,7 @@ export default function DashboardLayout() {
                                 onClick={() => { setProfileOpen((v) => !v); setNotificationsOpen(false); }}
                                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                             >
-                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0">
+                                <div className="w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0">
                                     {user?.name?.[0]?.toUpperCase()}
                                 </div>
                                 <div className="hidden sm:block text-left min-w-0">
@@ -448,7 +449,7 @@ export default function DashboardLayout() {
                             ? 'bg-red-500 text-white'
                             : trialInfo.daysRemaining <= 7
                                 ? 'bg-amber-400 text-amber-900'
-                                : 'bg-blue-600 text-white'
+                                : 'bg-brand-600 text-white'
                     }`}>
                         <div className="flex items-center gap-2">
                             {trialInfo.daysRemaining <= 3

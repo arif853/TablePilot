@@ -3,6 +3,7 @@ import { recommendationAPI } from '../../services/api';
 import { useCartStore } from '../../stores/cartStore';
 import toast from 'react-hot-toast';
 import { Sparkles, Plus, Star, Clock, Users, Loader2 } from 'lucide-react';
+import { restaurantInkColor } from '../../utils/restaurantTheme';
 
 const typeIcons = {
     popular: Star,
@@ -15,6 +16,7 @@ const typeIcons = {
 };
 
 const RecommendationCarousel = ({ tenantSlug, primaryColor = '#ED802A' }) => {
+    const inkColor = restaurantInkColor(primaryColor);
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [context, setContext] = useState({});
@@ -67,7 +69,7 @@ const RecommendationCarousel = ({ tenantSlug, primaryColor = '#ED802A' }) => {
         return (
             <div className="px-4 py-6">
                 <div className="flex items-center gap-2 mb-4">
-                    <Sparkles className="w-5 h-5" style={{ color: primaryColor }} />
+                    <Sparkles className="w-5 h-5" style={{ color: inkColor }} />
                     <h3 className="font-semibold text-gray-800">Recommended for You</h3>
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -111,7 +113,7 @@ const RecommendationCarousel = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                         className="p-1.5 rounded-lg"
                         style={{ backgroundColor: `${primaryColor}15` }}
                     >
-                        <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+                        <Sparkles className="w-4 h-4" style={{ color: inkColor }} />
                     </div>
                     <h3 className="font-semibold text-gray-800 text-sm">{title}</h3>
                 </div>
@@ -148,7 +150,7 @@ const RecommendationCarousel = ({ tenantSlug, primaryColor = '#ED802A' }) => {
 
                                 {/* Recommendation badge */}
                                 <div
-                                    className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium"
+                                    className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-on-restaurant text-[10px] font-medium"
                                     style={{ backgroundColor: primaryColor }}
                                 >
                                     <IconComponent className="w-3 h-3" />
@@ -157,7 +159,7 @@ const RecommendationCarousel = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                                 {/* Add button */}
                                 <button
                                     onClick={() => handleAddItem(item)}
-                                    className="absolute bottom-2 right-2 w-7 h-7 rounded-full text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95"
+                                    className="absolute bottom-2 right-2 w-7 h-7 rounded-full text-on-restaurant flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95"
                                     style={{ backgroundColor: primaryColor }}
                                 >
                                     <Plus className="w-4 h-4" />
@@ -174,7 +176,7 @@ const RecommendationCarousel = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                                 </p>
                                 <p
                                     className="text-sm font-bold mt-1"
-                                    style={{ color: primaryColor }}
+                                    style={{ color: inkColor }}
                                 >
                                     ৳{item.price}
                                 </p>

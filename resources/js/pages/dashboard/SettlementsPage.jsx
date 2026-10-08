@@ -21,7 +21,7 @@ export default function SettlementsPage() {
                     <div className="card"><p className="text-xs sm:text-sm text-gray-500">Total Sold</p><p className="text-lg sm:text-2xl font-bold">৳{data.summary.total_sold}</p></div>
                     <div className="card"><p className="text-xs sm:text-sm text-gray-500">Commission</p><p className="text-lg sm:text-2xl font-bold text-red-600">৳{data.summary.total_commission}</p></div>
                     <div className="card"><p className="text-xs sm:text-sm text-gray-500">Total Paid</p><p className="text-lg sm:text-2xl font-bold text-green-600">৳{data.summary.total_paid}</p></div>
-                    <div className="card"><p className="text-xs sm:text-sm text-gray-500">Payable Balance</p><p className="text-lg sm:text-2xl font-bold text-blue-600">৳{data.summary.total_payable}</p></div>
+                    <div className="card"><p className="text-xs sm:text-sm text-gray-500">Payable Balance</p><p className="text-lg sm:text-2xl font-bold text-brand-700">৳{data.summary.total_payable}</p></div>
                 </div>
             )}
 

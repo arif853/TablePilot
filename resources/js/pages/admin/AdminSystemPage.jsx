@@ -189,7 +189,7 @@ export default function AdminSystemPage() {
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm text-gray-500">Pending Jobs</span>
-                            <span className="text-2xl font-bold text-blue-600">
+                            <span className="text-2xl font-bold text-brand-700">
                                 {queueStats?.pending?.total || 0}
                             </span>
                         </div>

@@ -13,6 +13,7 @@ import {
     Leaf,
     Search,
 } from 'lucide-react';
+import { restaurantInkColor } from '../../utils/restaurantTheme';
 
 const iconMap = {
     menu: Menu,
@@ -22,6 +23,7 @@ const iconMap = {
 };
 
 const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
+    const inkColor = restaurantInkColor(primaryColor);
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
@@ -141,9 +143,9 @@ const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                 style={{ backgroundColor: primaryColor }}
             >
                 {isOpen ? (
-                    <X className="w-6 h-6 text-white" />
+                    <X className="w-6 h-6 text-on-restaurant" />
                 ) : (
-                    <MessageCircle className="w-6 h-6 text-white" />
+                    <MessageCircle className="w-6 h-6 text-on-restaurant" />
                 )}
             </button>
 
@@ -157,18 +159,18 @@ const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                         className="px-4 py-3 flex items-center gap-3"
                         style={{ backgroundColor: primaryColor }}
                     >
-                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                            <Bot className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 bg-on-restaurant/15 rounded-full flex items-center justify-center">
+                            <Bot className="w-5 h-5 text-on-restaurant" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-white font-semibold text-sm">Menu Assistant</h3>
-                            <p className="text-white/80 text-xs">Here to help you order</p>
+                            <h3 className="text-on-restaurant font-semibold text-sm">Menu Assistant</h3>
+                            <p className="text-on-restaurant/80 text-xs">Here to help you order</p>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                            className="p-1 hover:bg-on-restaurant/15 rounded-lg transition-colors"
                         >
-                            <X className="w-5 h-5 text-white" />
+                            <X className="w-5 h-5 text-on-restaurant" />
                         </button>
                     </div>
 
@@ -195,14 +197,14 @@ const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                                         {msg.role === 'user' ? (
                                             <User className="w-4 h-4 text-gray-600" />
                                         ) : (
-                                            <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+                                            <Sparkles className="w-4 h-4" style={{ color: inkColor }} />
                                         )}
                                     </div>
                                     <div>
                                         <div
                                             className={`px-3 py-2 rounded-2xl text-sm ${
                                                 msg.role === 'user'
-                                                    ? 'text-white rounded-br-md'
+                                                    ? 'text-on-restaurant rounded-br-md'
                                                     : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm'
                                             } ${msg.error ? 'bg-red-50 border-red-200 text-red-700' : ''}`}
                                             style={msg.role === 'user' && !msg.error ? { backgroundColor: primaryColor } : {}}
@@ -231,7 +233,7 @@ const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                                         className="w-7 h-7 rounded-full flex items-center justify-center"
                                         style={{ backgroundColor: `${primaryColor}20` }}
                                     >
-                                        <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+                                        <Sparkles className="w-4 h-4" style={{ color: inkColor }} />
                                     </div>
                                     <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-bl-md shadow-sm">
                                         <div className="flex gap-1">
@@ -260,7 +262,7 @@ const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                                             onClick={() => handleSuggestionClick(suggestion.text)}
                                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-full text-xs text-gray-700 transition-colors border border-gray-200"
                                         >
-                                            <IconComponent className="w-3 h-3" style={{ color: primaryColor }} />
+                                            <IconComponent className="w-3 h-3" style={{ color: inkColor }} />
                                             {suggestion.text}
                                         </button>
                                     );
@@ -284,7 +286,7 @@ const CustomerChatWidget = ({ tenantSlug, primaryColor = '#ED802A' }) => {
                             <button
                                 type="submit"
                                 disabled={loading || !inputValue.trim()}
-                                className="px-4 py-2.5 rounded-xl text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
+                                className="px-4 py-2.5 rounded-xl text-on-restaurant font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
                                 style={{ backgroundColor: primaryColor }}
                             >
                                 {loading ? (

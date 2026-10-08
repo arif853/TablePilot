@@ -88,7 +88,7 @@ export default function DashboardPage() {
                         {data.top_items.map((item, i) => (
                             <div key={i} className="flex items-center justify-between">
                                 <div className="flex items-center">
-                                    <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold mr-3">
+                                    <span className="w-6 h-6 bg-brand-100 text-brand-800 rounded-full flex items-center justify-center text-xs font-bold mr-3">
                                         {i + 1}
                                     </span>
                                     <span className="font-medium">{item.name}</span>

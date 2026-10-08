@@ -175,7 +175,7 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                                     value={tendered}
                                     onChange={(e) => setTendered(e.target.value)}
                                     placeholder={`Min ৳${totals.grandTotal.toFixed(2)}`}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-lg font-semibold focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-lg font-semibold focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                                     autoFocus
                                 />
                             </div>
@@ -200,7 +200,7 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                                 value={transactionId}
                                 onChange={(e) => setTransactionId(e.target.value)}
                                 placeholder="Enter reference number..."
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                                 autoFocus
                             />
                         </div>
@@ -211,7 +211,7 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                         <button
                             disabled={!canSubmit}
                             onClick={() => placeOrder('paid')}
-                            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors"
+                            className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors"
                         >
                             {loading ? (
                                 <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">

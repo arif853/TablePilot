@@ -231,14 +231,14 @@ export default function AdminPlansPage() {
                     <div
                         key={plan.id}
                         className={`bg-white rounded-xl p-6 shadow-sm border-2 transition-all ${
-                            plan.is_active ? 'border-blue-200' : 'border-gray-200 opacity-60'
+                            plan.is_active ? 'border-brand-200' : 'border-gray-200 opacity-60'
                         }`}
                     >
                         {/* Header */}
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <HiOutlineTicket className="w-5 h-5 text-blue-600" />
+                                    <HiOutlineTicket className="w-5 h-5 text-brand-700" />
                                     <h3 className="font-bold text-lg text-gray-900">{plan.name}</h3>
                                 </div>
                                 <p className="text-xs text-gray-400 font-mono">{plan.slug}</p>
@@ -259,7 +259,7 @@ export default function AdminPlansPage() {
                                 for {plan.duration_days} days
                             </p>
                             {plan.annual_price && (
-                                <p className="text-sm text-blue-600 mt-1">
+                                <p className="text-sm text-brand-700 mt-1">
                                     Annual: {formatCurrency(plan.annual_price)}
                                 </p>
                             )}
@@ -461,7 +461,7 @@ export default function AdminPlansPage() {
                             {formData.features.map((feature, i) => (
                                 <span
                                     key={i}
-                                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-brand-50 text-brand-800 rounded-full text-sm"
                                 >
                                     {feature}
                                     <button
@@ -483,7 +483,7 @@ export default function AdminPlansPage() {
                             id="is_active"
                             checked={formData.is_active}
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded"
+                            className="w-4 h-4 text-brand-700 rounded"
                         />
                         <label htmlFor="is_active" className="text-sm text-gray-700">
                             Plan is active and visible to users
@@ -535,7 +535,7 @@ export default function AdminPlansPage() {
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium text-gray-900">{module.label}</span>
-                                                    {module.is_core && <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">Core</span>}
+                                                    {module.is_core && <span className="text-xs px-2 py-0.5 bg-brand-100 text-brand-800 rounded-full">Core</span>}
                                                     {!module.is_active && <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">Platform Disabled</span>}
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-0.5">{module.description}</p>

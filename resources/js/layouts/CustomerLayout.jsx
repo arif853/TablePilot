@@ -7,6 +7,7 @@ import { useBrandingStore } from '../stores/brandingStore';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import PoweredBy from '../components/ui/PoweredBy';
 import CustomerChatWidget from '../components/ai/CustomerChatWidget';
+import { restaurantColor, restaurantInkColor, restaurantThemeStyle } from '../utils/restaurantTheme';
 import { HiOutlineClock } from 'react-icons/hi';
 
 // Get recent orders from localStorage
@@ -49,7 +50,8 @@ export default function CustomerLayout() {
     });
     const tableNumber = tableInfo?.table_number || tableId;
 
-    const primaryColor = restaurant?.primary_color || '#3B82F6';
+    const primaryColor = restaurantColor(restaurant?.primary_color);
+    const inkColor = restaurantInkColor(primaryColor);
 
     // Set document title and favicon to restaurant's branding
     useEffect(() => {
@@ -68,7 +70,7 @@ export default function CustomerLayout() {
             }
         }
         return () => {
-            document.title = prevTitle.current || branding.platform_name || 'RestaurantSaaS';
+            document.title = prevTitle.current || branding.platform_name || 'TablePilot';
             const link = document.querySelector("link[rel~='icon']");
             if (link && prevFavicon.current) {
                 link.href = prevFavicon.current;
@@ -91,7 +93,7 @@ export default function CustomerLayout() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col" style={restaurantThemeStyle(primaryColor)}>
             {/* Header */}
             <header className="bg-white shadow-sm sticky top-0 z-40" style={{ borderBottom: `3px solid ${primaryColor}` }}>
                 <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
@@ -144,7 +146,7 @@ export default function CustomerLayout() {
                                                             {new Date(order.placedAt).toLocaleDateString()} {new Date(order.placedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </p>
                                                     </div>
-                                                    <span className="text-xs font-medium" style={{ color: primaryColor }}>Track →</span>
+                                                    <span className="text-xs font-medium" style={{ color: inkColor }}>Track →</span>
                                                 </Link>
                                             ))}
                                         </div>

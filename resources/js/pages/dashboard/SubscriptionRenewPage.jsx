@@ -57,7 +57,7 @@ export default function SubscriptionRenewPage() {
                             type="button"
                             onClick={() => setSelectedPlan(plan)}
                             className={`text-left rounded-xl border p-4 transition ${
-                                isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+                                isSelected ? 'border-brand-500 ring-2 ring-brand-200' : 'border-gray-200 hover:border-gray-300'
                             }`}
                         >
                             <div className="flex items-start justify-between">

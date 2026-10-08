@@ -136,7 +136,7 @@ export default function MenuItemsPage() {
                             <div>
                                 <h3 className="font-semibold text-gray-900">{item.name}</h3>
                                 <p className="text-sm text-gray-500 mt-1">{item.category?.name || 'Uncategorized'}</p>
-                                <p className="text-lg font-bold text-blue-600 mt-2">৳{item.price}</p>
+                                <p className="text-lg font-bold text-brand-700 mt-2">৳{item.price}</p>
                             </div>
                             <span className={`px-2 py-1 rounded text-xs font-medium ${item.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                 {item.is_active ? 'Active' : 'Inactive'}
@@ -146,7 +146,7 @@ export default function MenuItemsPage() {
                             <p className="text-sm text-gray-400 mt-2 line-clamp-2">{item.description}</p>
                         )}
                         <div className="flex gap-2 mt-4 pt-4 border-t">
-                            <button onClick={() => toggleMutation.mutate(item.id)} className="text-sm text-blue-600 hover:text-blue-800">
+                            <button onClick={() => toggleMutation.mutate(item.id)} className="text-sm text-brand-700 hover:text-brand-900">
                                 {item.is_active ? 'Disable' : 'Enable'}
                             </button>
                             <button onClick={() => openForm(item)} className="text-sm text-gray-600 hover:text-gray-800">
@@ -169,7 +169,7 @@ export default function MenuItemsPage() {
                         <div className="flex items-center gap-4">
                             <div
                                 onClick={() => imageInputRef.current?.click()}
-                                className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 cursor-pointer hover:border-blue-400 transition"
+                                className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50 cursor-pointer hover:border-brand-400 transition"
                             >
                                 {imagePreview ? (
                                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
@@ -178,7 +178,7 @@ export default function MenuItemsPage() {
                                 )}
                             </div>
                             <div className="flex flex-col gap-1">
-                                <button type="button" onClick={() => imageInputRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-800">
+                                <button type="button" onClick={() => imageInputRef.current?.click()} className="text-sm text-brand-700 hover:text-brand-900">
                                     {imagePreview ? 'Change Image' : 'Upload Image'}
                                 </button>
                                 {imagePreview && (

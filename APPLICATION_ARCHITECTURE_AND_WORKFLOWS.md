@@ -1,4 +1,4 @@
-# Restaurant SaaS: Full Application Architecture and Workflows
+# TablePilot: Full Application Architecture and Workflows
 
 Last updated: 2026-04-05
 

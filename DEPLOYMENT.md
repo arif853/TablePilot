@@ -86,7 +86,7 @@ php artisan jwt:secret
 ### Configure `.env`
 
 ```env
-APP_NAME="RestaurantSaaS"
+APP_NAME="TablePilot"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://yourdomain.com
@@ -383,7 +383,7 @@ Or via cPanel **File Manager**: copy `public_html/build/index.html` to `public_h
 Create `.env` in `/home/yourusername/restaurant-saas/`:
 
 ```env
-APP_NAME="RestaurantSaaS"
+APP_NAME="TablePilot"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://yourdomain.com

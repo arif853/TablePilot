@@ -158,6 +158,7 @@ export const tableAPI = {
     transfer: (data) => api.post('/tables/transfer', data),
     qrCode: (id) => api.get(`/tables/${id}/qr`),
     parcelQr: () => api.get('/tables/parcel-qr'),
+    qrCodes: () => api.get('/tables/qr-codes'),
 };
 
 // Vouchers

@@ -54,7 +54,7 @@ export default function VouchersPage() {
                 {data?.map((v) => (
                     <div key={v.id} className={`card ${!v.is_active ? 'opacity-60' : ''}`}>
                         <div className="flex justify-between">
-                            <code className="text-lg font-bold text-blue-600">{v.code}</code>
+                            <code className="text-lg font-bold text-brand-700">{v.code}</code>
                             <span className={`text-xs font-medium px-2 py-1 rounded ${v.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                 {v.is_active ? 'Active' : 'Inactive'}
                             </span>
@@ -68,7 +68,7 @@ export default function VouchersPage() {
                             {v.max_uses && <p>Uses: {v.used_count}/{v.max_uses}</p>}
                         </div>
                         <div className="flex gap-3 mt-4 pt-3 border-t">
-                            <button onClick={() => { setEditing(v); setShowForm(true); }} className="text-sm text-blue-600">Edit</button>
+                            <button onClick={() => { setEditing(v); setShowForm(true); }} className="text-sm text-brand-700">Edit</button>
                             <button onClick={() => { if (confirm('Delete?')) deleteMutation.mutate(v.id); }} className="text-sm text-red-600">Delete</button>
                         </div>
                     </div>

@@ -74,7 +74,7 @@ export default function AdminTenantApplicationsPage() {
                         <button
                             key={option}
                             onClick={() => setFilter(option)}
-                            className={`rounded-full px-4 py-2 text-sm font-medium capitalize transition ${filter === option ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'}`}
+                            className={`rounded-full px-4 py-2 text-sm font-medium capitalize transition ${filter === option ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'}`}
                         >
                             {option}
                         </button>
@@ -116,7 +116,7 @@ export default function AdminTenantApplicationsPage() {
                                 <td className="py-3 text-right">
                                     <div className="flex justify-end gap-3">
                                         {application.status === 'verified' && (
-                                            <button onClick={() => openDecision(application, 'approve')} className="text-blue-600 hover:text-blue-700 font-medium">Approve</button>
+                                            <button onClick={() => openDecision(application, 'approve')} className="text-brand-700 hover:text-brand-800 font-medium">Approve</button>
                                         )}
                                         {application.status !== 'approved' && (
                                             <button onClick={() => openDecision(application, 'reject')} className="text-red-600 hover:text-red-700 font-medium">Reject</button>

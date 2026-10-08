@@ -161,7 +161,7 @@ const testimonials = [
 export default function LandingPage() {
     const { branding } = useBrandingStore();
     const logoSrc = branding.platform_logo ? `/storage/${branding.platform_logo}` : null;
-    const platformName = branding.platform_name || 'Infyrasoft';
+    const platformName = branding.platform_name || 'TablePilot';
 
     const [form, setForm] = useState({ name: '', email: '', phone: '', restaurant_name: '', message: '' });
     const [submitting, setSubmitting] = useState(false);
@@ -237,7 +237,7 @@ export default function LandingPage() {
                     <div className="text-center max-w-4xl mx-auto">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6" style={{ backgroundColor: `${PRIMARY_COLOR}15`, color: PRIMARY_COLOR }}>
                             <HiOutlineSparkles className="w-4 h-4" />
-                            Smart Restaurant Management System
+                            The AI-Powered Restaurant Platform
                         </div>
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight">
                             Run Your Restaurant <br className="hidden sm:block" />

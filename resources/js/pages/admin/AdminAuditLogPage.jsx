@@ -154,7 +154,7 @@ export default function AdminAuditLogPage() {
                         <p className="text-sm text-gray-500">Total Logs</p>
                     </div>
                     <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <p className="text-2xl font-bold text-blue-600">{stats.today || 0}</p>
+                        <p className="text-2xl font-bold text-brand-700">{stats.today || 0}</p>
                         <p className="text-sm text-gray-500">Today</p>
                     </div>
                     <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">

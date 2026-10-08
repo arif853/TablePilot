@@ -5,6 +5,7 @@ import { orderAPI } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatusBadge from '../../components/ui/StatusBadge';
 import POSInvoice from '../../components/POSInvoice';
+import { restaurantThemeStyle } from '../../utils/restaurantTheme';
 import {
     HiOutlineDocumentText,
     HiOutlineCash,
@@ -109,7 +110,7 @@ export default function OrderTrackingPage() {
                                         to={order.accessToken
                                             ? `/order/${order.orderNumber}?access_token=${encodeURIComponent(order.accessToken)}`
                                             : `/order/${order.orderNumber}`}
-                                        className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-blue-200 transition"
+                                        className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-restaurant/40 transition"
                                     >
                                         <div>
                                             <p className="font-semibold text-sm text-gray-900">#{order.orderNumber}</p>
@@ -117,7 +118,7 @@ export default function OrderTrackingPage() {
                                                 {new Date(order.placedAt).toLocaleDateString()} at {new Date(order.placedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>
-                                        <span className="text-blue-600 text-xs font-medium">Track →</span>
+                                        <span className="text-restaurant-ink text-xs font-medium">Track →</span>
                                     </Link>
                                 ))}
                             </div>
@@ -133,7 +134,7 @@ export default function OrderTrackingPage() {
     const isActive = !['completed', 'cancelled'].includes(data.status);
 
     return (
-        <div className="min-h-screen bg-gray-50 py-6 px-4">
+        <div className="min-h-screen bg-gray-50 py-6 px-4" style={restaurantThemeStyle(data.restaurant?.primary_color)}>
             <div className="max-w-md mx-auto">
                 {/* Header with refresh */}
                 <div className="text-center mb-6">
@@ -176,8 +177,8 @@ export default function OrderTrackingPage() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             {data.payment_method === 'cash' ? (
-                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <HiOutlineCash className="w-5 h-5 text-blue-600" />
+                                <div className="w-10 h-10 rounded-full bg-restaurant/15 flex items-center justify-center">
+                                    <HiOutlineCash className="w-5 h-5 text-restaurant-ink" />
                                 </div>
                             ) : (
                                 <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
@@ -201,7 +202,7 @@ export default function OrderTrackingPage() {
                         </p>
                     )}
                     {data.payment_method === 'online' && !isPaid && data.payment_url && (
-                        <a href={data.payment_url} className="block mt-3 text-center bg-blue-600 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-blue-700 transition">
+                        <a href={data.payment_url} className="block mt-3 text-center bg-restaurant text-on-restaurant text-sm font-medium py-2.5 rounded-xl hover:opacity-90 transition">
                             Complete Payment
                         </a>
                     )}
@@ -315,7 +316,7 @@ export default function OrderTrackingPage() {
                                         to={order.accessToken
                                             ? `/order/${order.orderNumber}?access_token=${encodeURIComponent(order.accessToken)}`
                                             : `/order/${order.orderNumber}`}
-                                        className="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100 text-sm hover:border-blue-200 transition"
+                                        className="flex items-center justify-between bg-white p-3 rounded-xl shadow-sm border border-gray-100 text-sm hover:border-restaurant/40 transition"
                                     >
                                         <span className="font-medium text-gray-700">#{order.orderNumber}</span>
                                         <span className="text-xs text-gray-400">{new Date(order.placedAt).toLocaleDateString()}</span>

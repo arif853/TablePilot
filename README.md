@@ -1,4 +1,4 @@
-# 🍽️ RestaurantSaaS — Multi-Tenant Restaurant Management Platform
+# 🍽️ TablePilot — The AI-Powered Restaurant Platform
 
 A full-featured, multi-tenant **Restaurant Management SaaS Platform** built with **Laravel 12** and **React 18**. Designed for restaurant owners to manage menus, orders, tables, vouchers, kitchen displays, settlements, and more — all behind a subscription-based model managed by a super admin.
 
@@ -192,7 +192,7 @@ php artisan jwt:secret
 Edit `.env` with your settings:
 
 ```env
-APP_NAME="RestaurantSaaS"
+APP_NAME="TablePilot"
 APP_URL=http://localhost:8000
 
 DB_CONNECTION=mysql

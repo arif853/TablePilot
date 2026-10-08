@@ -94,11 +94,11 @@ export default function OrdersPage() {
 
             {/* Filter tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${!filter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${!filter ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                     Today
                 </button>
                 {STATUS_OPTIONS.map((s) => (
-                    <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize whitespace-nowrap ${filter === s ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize whitespace-nowrap ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
                         {s}
                     </button>
                 ))}
@@ -163,7 +163,7 @@ export default function OrdersPage() {
                                     {(() => {
                                         const pm = PAYMENT_METHOD_MAP[viewOrder.payment_method];
                                         if (pm) {
-                                            return <><pm.icon className="w-5 h-5 text-blue-600" /> <span>{pm.label}{viewOrder.payment_gateway ? ` (${viewOrder.payment_gateway})` : ''}</span></>;
+                                            return <><pm.icon className="w-5 h-5 text-brand-700" /> <span>{pm.label}{viewOrder.payment_gateway ? ` (${viewOrder.payment_gateway})` : ''}</span></>;
                                         }
                                         return <span className="text-gray-400">No payment method</span>;
                                     })()}
@@ -189,7 +189,7 @@ export default function OrdersPage() {
                                 <button
                                     onClick={() => handleViewInvoice(viewOrder.order_number)}
                                     disabled={loadingInvoice}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
                                 >
                                     <HiOutlineDocumentText className="w-4 h-4" />
                                     {loadingInvoice ? 'Loading...' : 'Invoice'}

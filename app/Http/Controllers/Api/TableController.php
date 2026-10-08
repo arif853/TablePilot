@@ -142,18 +142,43 @@ class TableController extends BaseApiController
             return $this->notFound('Table not found');
         }
 
-        $qrIdentifier = $this->generateQrIdentifier($table->tenant_id, $table->table_number);
-        $table->update(['qr_code' => $qrIdentifier]);
-
         $tenant = Tenant::find($table->tenant_id);
-        $slug = $tenant ? $tenant->slug : $table->tenant_id;
-        $qrUrl = config('app.frontend_url') . "/restaurant/{$slug}?table={$table->id}&qr={$qrIdentifier}";
 
         return $this->success([
             'table' => $table,
-            'qr_url' => $qrUrl,
-            'qr_identifier' => $qrIdentifier,
+            'qr_url' => $this->tableQrUrl($table, $tenant),
+            'qr_identifier' => $table->qr_code,
         ]);
+    }
+
+    /**
+     * QR links for every table at once, for printing a full set of table cards.
+     */
+    public function qrCodes(): JsonResponse
+    {
+        $tenant = Tenant::find(auth()->user()->tenant_id);
+
+        $cards = RestaurantTable::orderBy('table_number')->get()->map(fn (RestaurantTable $table) => [
+            'table' => $table->only(['id', 'table_number', 'capacity']),
+            'qr_url' => $this->tableQrUrl($table, $tenant),
+        ]);
+
+        return $this->success($cards->values());
+    }
+
+    /**
+     * A table's QR link. The identifier is created once and then reused, so printed
+     * cards stay valid and the QR image doesn't change every time it's viewed.
+     */
+    private function tableQrUrl(RestaurantTable $table, ?Tenant $tenant): string
+    {
+        if (!$table->qr_code) {
+            $table->update(['qr_code' => $this->generateQrIdentifier($table->tenant_id, $table->table_number)]);
+        }
+
+        $slug = $tenant ? $tenant->slug : $table->tenant_id;
+
+        return config('app.frontend_url') . "/restaurant/{$slug}?table={$table->id}&qr={$table->qr_code}";
     }
 
     public function generateParcelQr(): JsonResponse
@@ -161,7 +186,8 @@ class TableController extends BaseApiController
         $tenantId = auth()->user()->tenant_id;
         $tenant = Tenant::find($tenantId);
         $slug = $tenant ? $tenant->slug : $tenantId;
-        $qrIdentifier = 'PARCEL-' . Str::upper(Str::random(8));
+        // Stable per restaurant (no column to store it in), so printed takeaway cards keep working
+        $qrIdentifier = 'PARCEL-' . Str::upper(substr(hash_hmac('sha256', "parcel:{$tenantId}", config('app.key')), 0, 8));
 
         $qrUrl = config('app.frontend_url') . "/restaurant/{$slug}?type=parcel&qr={$qrIdentifier}";
 

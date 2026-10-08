@@ -37,7 +37,7 @@ function ImageUpload({ label, currentImage, fieldName, onFileSelect, onRemove })
                     <button
                         type="button"
                         onClick={() => inputRef.current?.click()}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-brand-50 text-brand-800 rounded-lg hover:bg-brand-100"
                     >
                         <HiOutlineUpload className="w-4 h-4" /> Upload
                     </button>
@@ -198,7 +198,7 @@ export default function AdminSettingsPage() {
                                 className="input"
                                 value={form.platform_name || ''}
                                 onChange={(e) => handleChange('platform_name', e.target.value)}
-                                placeholder="RestaurantSaaS"
+                                placeholder="TablePilot"
                             />
                         </div>
                         <div>
@@ -207,7 +207,7 @@ export default function AdminSettingsPage() {
                                 className="input"
                                 value={form.footer_text || ''}
                                 onChange={(e) => handleChange('footer_text', e.target.value)}
-                                placeholder="© 2026 RestaurantSaaS. All rights reserved."
+                                placeholder="© 2026 TablePilot. All rights reserved."
                             />
                         </div>
                         <div>
@@ -216,7 +216,7 @@ export default function AdminSettingsPage() {
                                 className="input"
                                 value={form.powered_by_text || ''}
                                 onChange={(e) => handleChange('powered_by_text', e.target.value)}
-                                placeholder="Powered by RestaurantSaaS"
+                                placeholder="Powered by TablePilot"
                             />
                             <p className="text-xs text-gray-400 mt-1">Shown on restaurant & customer panels</p>
                         </div>
@@ -241,15 +241,15 @@ export default function AdminSettingsPage() {
                             <div className="flex items-center gap-3">
                                 <input
                                     type="color"
-                                    value={form.primary_color || '#3B82F6'}
+                                    value={form.primary_color || '#ED802A'}
                                     onChange={(e) => handleChange('primary_color', e.target.value)}
                                     className="w-12 h-10 rounded border cursor-pointer"
                                 />
                                 <input
                                     className="input flex-1"
-                                    value={form.primary_color || '#3B82F6'}
+                                    value={form.primary_color || '#ED802A'}
                                     onChange={(e) => handleChange('primary_color', e.target.value)}
-                                    placeholder="#3B82F6"
+                                    placeholder="#ED802A"
                                 />
                             </div>
                         </div>
@@ -258,15 +258,15 @@ export default function AdminSettingsPage() {
                             <div className="flex items-center gap-3">
                                 <input
                                     type="color"
-                                    value={form.secondary_color || '#1E40AF'}
+                                    value={form.secondary_color || '#B8560E'}
                                     onChange={(e) => handleChange('secondary_color', e.target.value)}
                                     className="w-12 h-10 rounded border cursor-pointer"
                                 />
                                 <input
                                     className="input flex-1"
-                                    value={form.secondary_color || '#1E40AF'}
+                                    value={form.secondary_color || '#B8560E'}
                                     onChange={(e) => handleChange('secondary_color', e.target.value)}
-                                    placeholder="#1E40AF"
+                                    placeholder="#B8560E"
                                 />
                             </div>
                         </div>
@@ -276,10 +276,10 @@ export default function AdminSettingsPage() {
                     <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-500 mb-3">Live Preview:</p>
                         <div className="flex gap-4 items-center">
-                            <div className="h-10 px-6 rounded-lg flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.primary_color || '#3B82F6' }}>
+                            <div className="h-10 px-6 rounded-lg flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.primary_color || '#ED802A' }}>
                                 Primary Button
                             </div>
-                            <div className="h-10 px-6 rounded-lg flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.secondary_color || '#1E40AF' }}>
+                            <div className="h-10 px-6 rounded-lg flex items-center justify-center text-white text-sm font-medium" style={{ backgroundColor: form.secondary_color || '#B8560E' }}>
                                 Secondary
                             </div>
                         </div>

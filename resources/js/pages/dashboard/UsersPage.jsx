@@ -119,7 +119,7 @@ export default function UsersPage() {
                                 <td className="py-3">
                                     <div className="flex justify-end gap-3 whitespace-nowrap">
                                         {canManage(user) && (
-                                            <button onClick={() => setEditing(user)} className="text-blue-600 hover:underline">Edit</button>
+                                            <button onClick={() => setEditing(user)} className="text-brand-700 hover:underline">Edit</button>
                                         )}
                                         {canToggle(user) && (
                                             <button
@@ -144,7 +144,7 @@ export default function UsersPage() {
                     <div key={user.id} className="card">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0">
+                                <div className="w-9 h-9 bg-brand-600 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0">
                                     {user.name?.[0]?.toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
@@ -157,7 +157,7 @@ export default function UsersPage() {
                         <div className="flex items-center justify-between mt-3 pt-3 border-t">
                             <span className="text-sm text-gray-500">{ROLE_LABELS[user.role] || user.role}</span>
                             <div className="flex gap-4 text-sm font-medium">
-                                {canManage(user) && <button onClick={() => setEditing(user)} className="text-blue-600">Edit</button>}
+                                {canManage(user) && <button onClick={() => setEditing(user)} className="text-brand-700">Edit</button>}
                                 {canToggle(user) && (
                                     <button onClick={() => handleToggle(user)} className={user.status === 'active' ? 'text-red-600' : 'text-green-600'}>
                                         {user.status === 'active' ? 'Deactivate' : 'Activate'}

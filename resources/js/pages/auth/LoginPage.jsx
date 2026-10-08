@@ -49,13 +49,13 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 px-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
                     {logoSrc ? (
                         <img src={logoSrc} alt={branding.platform_name} className="h-12 mx-auto mb-3" />
                     ) : (
-                        <h1 className="text-3xl font-bold text-blue-600">{branding.platform_name || 'RestaurantSaaS'}</h1>
+                        <h1 className="text-3xl font-bold text-brand-700">{branding.platform_name || 'TablePilot'}</h1>
                     )}
                     <p className="text-gray-500 mt-2">Sign in to your account</p>
                 </div>
@@ -97,7 +97,7 @@ export default function LoginPage() {
 
                     <p className="text-center text-sm text-gray-500 mt-6">
                         Need an account?{' '}
-                        <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">Register</Link>
+                        <Link to="/register" className="text-brand-700 hover:text-brand-800 font-medium">Register</Link>
                     </p>
                 </div>
             </div>

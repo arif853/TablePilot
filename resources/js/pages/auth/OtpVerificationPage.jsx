@@ -63,7 +63,7 @@ export default function OtpVerificationPage() {
                 </form>
 
                 <div className="mt-6 flex items-center justify-between gap-4 text-sm">
-                    <button type="button" onClick={handleResend} disabled={resending || !email} className="font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50">
+                    <button type="button" onClick={handleResend} disabled={resending || !email} className="font-medium text-brand-700 hover:text-brand-800 disabled:opacity-50">
                         {resending ? 'Resending...' : 'Resend OTP'}
                     </button>
                     <Link to="/register" className="text-slate-500 hover:text-slate-700">Back to registration</Link>

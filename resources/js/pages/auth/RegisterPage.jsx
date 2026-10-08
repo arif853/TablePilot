@@ -60,7 +60,7 @@ export default function RegisterPage() {
                     {logoSrc ? (
                         <img src={logoSrc} alt={branding.platform_name} className="h-12 w-auto mb-6" />
                     ) : (
-                        <h1 className="text-3xl font-bold mb-6">{branding.platform_name || 'RestaurantSaaS'}</h1>
+                        <h1 className="text-3xl font-bold mb-6">{branding.platform_name || 'TablePilot'}</h1>
                     )}
                     <p className="text-sm uppercase tracking-[0.3em] text-amber-300">Tenant onboarding</p>
                     <h2 className="mt-4 text-4xl font-semibold leading-tight">Register your restaurant with a plan, verify by OTP, and wait for admin approval.</h2>
@@ -165,7 +165,7 @@ export default function RegisterPage() {
 
                     <p className="mt-6 text-center text-sm text-gray-500">
                         Already have an account?{' '}
-                        <Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign in</Link>
+                        <Link to="/login" className="font-medium text-brand-700 hover:text-brand-800">Sign in</Link>
                     </p>
                 </div>
             </div>

@@ -88,7 +88,7 @@ export default function KitchenDisplayPage() {
                     <span className="bg-red-600 px-2 sm:px-3 py-1 rounded-full">Pending: {stats?.pending || 0}</span>
                     <span className="bg-yellow-600 px-2 sm:px-3 py-1 rounded-full">Preparing: {stats?.preparing || 0}</span>
                     <span className="bg-green-600 px-2 sm:px-3 py-1 rounded-full">Ready: {stats?.ready || 0}</span>
-                    <span className="bg-blue-600 px-2 sm:px-3 py-1 rounded-full">Today: {stats?.total_today || 0}</span>
+                    <span className="bg-brand-600 px-2 sm:px-3 py-1 rounded-full">Today: {stats?.total_today || 0}</span>
                 </div>
             </div>
 
@@ -132,7 +132,7 @@ export default function KitchenDisplayPage() {
                                 <button
                                     onClick={() => advanceMutation.mutate(order.id)}
                                     disabled={advanceMutation.isPending}
-                                    className="w-full py-3 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition"
+                                    className="w-full py-3 rounded-lg font-bold text-white bg-brand-600 hover:bg-brand-700 transition"
                                 >
                                     {order.status === 'placed' && 'Confirm'}
                                     {order.status === 'confirmed' && 'Start Preparing'}

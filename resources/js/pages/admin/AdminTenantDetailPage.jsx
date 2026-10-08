@@ -255,8 +255,8 @@ export default function AdminTenantDetailPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-blue-50 rounded-xl">
-                            <HiOutlineShoppingCart className="w-6 h-6 text-blue-600" />
+                        <div className="p-3 bg-brand-50 rounded-xl">
+                            <HiOutlineShoppingCart className="w-6 h-6 text-brand-700" />
                         </div>
                         <div>
                             <p className="text-sm text-gray-500">Total Orders</p>
@@ -367,7 +367,7 @@ export default function AdminTenantDetailPage() {
                     <h3 className="font-semibold text-gray-900">Subscription History</h3>
                     <Link
                         to={`/dashboard/admin/subscriptions?tenant_id=${id}`}
-                        className="text-sm text-blue-600 hover:underline"
+                        className="text-sm text-brand-700 hover:underline"
                     >
                         View all →
                     </Link>
@@ -413,7 +413,7 @@ export default function AdminTenantDetailPage() {
                         Users <span className="text-sm font-normal text-gray-400">({stats?.active_users || 0}/{tenant?.max_users} active)</span>
                     </h3>
                     <div className="flex items-center gap-4">
-                        <Link to={`/dashboard/admin/users?tenant_id=${id}`} className="text-sm text-blue-600 hover:underline">
+                        <Link to={`/dashboard/admin/users?tenant_id=${id}`} className="text-sm text-brand-700 hover:underline">
                             Manage all →
                         </Link>
                         <button onClick={() => setUserForm(null)} className="btn-primary text-sm">+ Add User</button>
@@ -423,7 +423,7 @@ export default function AdminTenantDetailPage() {
                     {tenant?.users?.map((user) => (
                         <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+                                <div className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center text-white font-medium">
                                     {user.name?.[0]?.toUpperCase()}
                                 </div>
                                 <div>
@@ -439,7 +439,7 @@ export default function AdminTenantDetailPage() {
                                     <p className="text-xs text-gray-400 mt-1">{user.status}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 text-sm">
-                                    <button onClick={() => setUserForm(user)} className="text-blue-600 hover:underline">Edit</button>
+                                    <button onClick={() => setUserForm(user)} className="text-brand-700 hover:underline">Edit</button>
                                     {user.status !== 'pending' && (
                                         <button
                                             onClick={() => handleToggleUser(user)}
@@ -499,7 +499,7 @@ export default function AdminTenantDetailPage() {
                                                         ) : module.override_type ? (
                                                             <button
                                                                 onClick={() => removeOverrideMutation.mutate(module.key)}
-                                                                className="text-sm text-blue-600 hover:underline"
+                                                                className="text-sm text-brand-700 hover:underline"
                                                             >
                                                                 Remove Override
                                                             </button>

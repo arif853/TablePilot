@@ -9,10 +9,10 @@ export default defineConfig({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'robots.txt'],
             manifest: {
-                name: 'InfyraSoft Smart Resturant SAAS',
-                short_name: 'Smart Resturant',
-                description: 'Multi-Tenant Restaurant Management Platform',
-                theme_color: '#3B82F6',
+                name: 'TablePilot',
+                short_name: 'TablePilot',
+                description: 'The AI-powered restaurant platform',
+                theme_color: '#ED802A',
                 background_color: '#ffffff',
                 display: 'standalone',
                 start_url: '/',
@@ -32,7 +32,7 @@ export default defineConfig({
         }),
     ],
     root: 'resources/js',
-    base: '/',
+    base: '/build/',
     build: {
         outDir: '../../public/build',
         emptyOutDir: true,
@@ -43,6 +43,11 @@ export default defineConfig({
         port: 3000,
         proxy: {
             '/api': {
+                target: 'http://backend.test',
+                changeOrigin: true,
+            },
+            // Static images live in Laravel's public/ (Vite's root is resources/js)
+            '/assets': {
                 target: 'http://backend.test',
                 changeOrigin: true,
             },
