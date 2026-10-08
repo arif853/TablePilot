@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { HiOutlineDownload, HiOutlinePrinter } from 'react-icons/hi';
+import { HiOutlinePrinter } from 'react-icons/hi';
+import { useReactToPrint } from 'react-to-print';
 
 /**
  * POSInvoice — supports both the NEW structured response from the invoice API
@@ -12,6 +13,7 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
     // ── Normalise props (new structure vs legacy) ──────────────────────────────
     const inv        = data?.invoice   ?? null;
     const restaurant = data?.restaurant ?? legacyRestaurant ?? null;
+    const orderMeta  = data?.order ?? null;
     const items      = data?.items     ?? legacyOrder?.items ?? [];
     const totals     = data?.totals    ?? null;
     const payment    = data?.payment   ?? null;
@@ -19,79 +21,50 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
     // Derive display values — prefer new structured fields, fall back to legacy
     const orderNumber    = inv?.order_number   ?? legacyOrder?.order_number;
     const invoiceNumber  = inv?.invoice_number ?? legacyOrder?.invoice_number ?? null;
-    const orderDate      = inv?.date           ?? legacyOrder?.created_at;
-    const orderType      = legacyOrder?.type   ?? '';
-    const tableName      = legacyOrder?.table?.table_number ?? null;
-    const customerName   = legacyOrder?.customer_name ?? null;
-    const customerPhone  = legacyOrder?.customer_phone ?? null;
+    const orderDate      = inv?.date           ?? orderMeta?.created_at ?? legacyOrder?.created_at;
+    const orderType      = orderMeta?.type     ?? legacyOrder?.type   ?? '';
+    const tableName      = orderMeta?.table_number ?? legacyOrder?.table?.table_number ?? null;
+    const customerName   = orderMeta?.customer_name ?? legacyOrder?.customer_name ?? null;
+    const customerPhone  = orderMeta?.customer_phone ?? legacyOrder?.customer_phone ?? null;
+    const deliveryAddress = orderMeta?.delivery_address ?? legacyOrder?.delivery_address ?? null;
 
     const subtotal   = parseFloat(totals?.subtotal    ?? legacyOrder?.subtotal   ?? 0);
     const discount   = parseFloat(totals?.discount    ?? legacyOrder?.discount   ?? 0);
     const netAmount  = parseFloat(totals?.net_amount  ?? legacyOrder?.net_amount ?? 0);
     const vatRate    = parseFloat(totals?.vat_rate     ?? legacyOrder?.vat_rate   ?? 0);
     const vatAmount  = parseFloat(totals?.vat_amount   ?? legacyOrder?.vat_amount ?? legacyOrder?.tax ?? 0);
+    const sdRate     = parseFloat(totals?.sd_rate      ?? legacyOrder?.sd_rate ?? 0);
+    const sdAmount   = parseFloat(totals?.sd_amount    ?? legacyOrder?.sd_amount ?? 0);
     const grandTotal = parseFloat(totals?.grand_total  ?? legacyOrder?.grand_total ?? 0);
 
     const payMethod  = payment?.method ?? legacyOrder?.payment_method ?? '';
     const payStatus  = payment?.status ?? legacyOrder?.payment_status ?? '';
     const isPaid     = payStatus === 'paid';
     const txnId      = legacyOrder?.transaction_id ?? null;
+    const splitPayments = payment?.split_payments ?? legacyOrder?.split_payment_details ?? [];
 
     const paymentLabelMap = {
         cash: 'Cash',
         card: 'Card / POS',
         mobile_banking: 'Mobile Banking',
+        bkash: 'bKash',
+        nagad: 'Nagad',
+        rocket: 'Rocket',
+        split: 'Split Payment',
         online: 'Online',
     };
     const paymentLabel = paymentLabelMap[payMethod] ?? payMethod;
 
-    const handlePrint = () => {
-        const content = invoiceRef.current;
-        if (!content) return;
-
-        const printWindow = window.open('', '_blank', 'width=320,height=600');
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8" />
-                <title>Invoice - ${orderNumber}</title>
-                <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Courier New', monospace; font-size: 12px; color: #000; width: 80mm; margin: 0 auto; padding: 8px; }
-                    .center { text-align: center; }
-                    .bold { font-weight: bold; }
-                    .divider { border-top: 1px dashed #000; margin: 6px 0; }
-                    .row { display: flex; justify-content: space-between; padding: 1px 0; }
-                    .item-row { display: flex; justify-content: space-between; padding: 2px 0; }
-                    .restaurant-name { font-size: 16px; font-weight: bold; }
-                    .order-num { font-size: 14px; font-weight: bold; margin: 4px 0; }
-                    .inv-num { font-size: 11px; color: #444; margin-bottom: 2px; }
-                    .total-row { font-size: 14px; font-weight: bold; }
-                    .footer { font-size: 10px; color: #666; margin-top: 8px; }
-                    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-                    .badge-paid { background: #dcfce7; color: #166534; }
-                    .badge-pending { background: #fef3c7; color: #92400e; }
-                    .badge-cash { background: #e0f2fe; color: #075985; }
-                    .badge-online { background: #f3e8ff; color: #6b21a8; }
-                    @media print {
-                        body { width: 80mm; }
-                        @page { size: 80mm auto; margin: 0; }
-                    }
-                </style>
-            </head>
-            <body>
-                ${content.innerHTML}
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
-    };
+    const handlePrint = useReactToPrint({
+        contentRef: invoiceRef,
+        documentTitle: `Invoice-${orderNumber}`,
+        pageStyle: `
+            @page { size: 80mm auto; margin: 0; }
+            @media print {
+                body { width: 80mm; margin: 0 auto; }
+            }
+        `,
+    });
 
     if (!orderNumber) return null;
 
@@ -160,11 +133,12 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
                     <div className="divider" style={{ borderTop: '1px dashed #000', margin: '8px 0' }}></div>
 
                     {/* Customer */}
-                    {(customerName || customerPhone) && (
+                    {(customerName || customerPhone || deliveryAddress) && (
                         <>
                             <div style={{ fontSize: '11px' }}>
                                 {customerName && <div>Customer: {customerName}</div>}
                                 {customerPhone && <div>Phone: {customerPhone}</div>}
+                                {deliveryAddress && <div>Address: {deliveryAddress}</div>}
                             </div>
                             <div className="divider" style={{ borderTop: '1px dashed #000', margin: '8px 0' }}></div>
                         </>
@@ -210,6 +184,12 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
                                 <span>৳{vatAmount.toFixed(2)}</span>
                             </div>
                         )}
+                        {sdAmount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                                <span>SD ({sdRate}%)</span>
+                                <span>৳{sdAmount.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="divider" style={{ borderTop: '1px dashed #000', margin: '6px 0' }}></div>
                         <div className="total-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 'bold' }}>
                             <span>TOTAL</span>
@@ -246,6 +226,13 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
                         {txnId && (
                             <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
                                 TXN: {txnId}
+                            </div>
+                        )}
+                        {Array.isArray(splitPayments) && splitPayments.length > 0 && (
+                            <div style={{ marginTop: '6px', fontSize: '10px', color: '#555' }}>
+                                {splitPayments.map((row, idx) => (
+                                    <div key={idx}>{row.method}: ৳{parseFloat(row.amount ?? 0).toFixed(2)}</div>
+                                ))}
                             </div>
                         )}
                     </div>

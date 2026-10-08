@@ -6,6 +6,7 @@ use App\Events\NewOrderCreated;
 use App\Http\Requests\StorePosOrderRequest;
 use App\Services\BillingService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class PosOrderController extends BaseApiController
 {
@@ -19,15 +20,15 @@ class PosOrderController extends BaseApiController
      * Differences from the public CustomerController flow:
      *  - No WiFi IP check (staff are trusted / on-premises)
      *  - Tenant is resolved from the authenticated user's tenant_id
-     *  - Supports order types: dine | parcel | quick
-     *  - Supports payment methods: cash | card | mobile_banking
+        *  - Supports order types: dine | parcel | quick | delivery
+        *  - Supports payment methods: cash | card | mobile_banking | bkash | nagad | rocket | split
      *  - Can mark payment as paid immediately (payment_status = 'paid')
      *  - Records served_by = authenticated user id
      *  - Sets source = 'pos'
      */
     public function store(StorePosOrderRequest $request): JsonResponse
     {
-        $user   = auth()->user();
+        $user   = Auth::user();
         $tenant = $user->tenant;
 
         if (!$tenant || !$tenant->is_active) {

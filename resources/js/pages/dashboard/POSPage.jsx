@@ -17,16 +17,20 @@ import {
     HiOutlineCheckCircle,
     HiOutlineRefresh,
     HiOutlinePencil,
+    HiOutlineTruck,
+    HiOutlineClock,
 } from 'react-icons/hi';
-import { categoryAPI, menuAPI, tableAPI, voucherAPI } from '../../services/api';
+import { categoryAPI, menuAPI, posAPI, tableAPI, voucherAPI } from '../../services/api';
 import { usePosStore } from '../../stores/posStore';
 import { useAuthStore } from '../../stores/authStore';
 import POSCheckoutModal from '../../components/POSCheckoutModal';
+import { cachePosData, getCachedPosData, syncQueuedOrders } from '../../services/posOffline';
 
 // ─── Order type config ────────────────────────────────────────────────────────
 const ORDER_TYPES = [
     { id: 'dine',   label: 'Dine-In',   icon: HiOutlineTable },
     { id: 'parcel', label: 'Takeaway',  icon: HiOutlineShoppingBag },
+    { id: 'delivery', label: 'Delivery', icon: HiOutlineTruck },
     { id: 'quick',  label: 'Quick Sale', icon: HiOutlineLightningBolt },
 ];
 
@@ -92,27 +96,59 @@ export default function POSPage() {
     const [voucherInput, setVoucherInput] = useState(cart?.voucherCode ?? '');
     const [voucherLoading, setVoucherLoading] = useState(false);
     const [showCheckout, setShowCheckout] = useState(false);
+    const [currentShift, setCurrentShift] = useState(null);
 
     // Tenant VAT config from authenticated user's tenant
-    const vatRate = parseFloat(user?.tenant?.default_vat_rate ?? 0);
+    const vatRate = parseFloat(user?.tenant?.default_vat_rate ?? 15);
+    const sdRate = parseFloat(user?.tenant?.default_sd_rate ?? 0);
     const vatInclusive = !!user?.tenant?.vat_inclusive;
 
     // ── Queries ────────────────────────────────────────────────────────────────
     const { data: categoriesData } = useQuery({
         queryKey: ['pos-categories'],
-        queryFn: () => categoryAPI.list({ per_page: 100 }),
+        queryFn: async () => {
+            try {
+                const res = await categoryAPI.list({ per_page: 100 });
+                await cachePosData('categories', res.data);
+                return res;
+            } catch (err) {
+                const cached = await getCachedPosData('categories');
+                if (cached) return { data: cached };
+                throw err;
+            }
+        },
         staleTime: 30000,
     });
 
     const { data: menuData, refetch: refetchMenu } = useQuery({
         queryKey: ['pos-menu'],
-        queryFn: () => menuAPI.list({ per_page: 200 }),
+        queryFn: async () => {
+            try {
+                const res = await menuAPI.list({ per_page: 200 });
+                await cachePosData('menu', res.data);
+                return res;
+            } catch (err) {
+                const cached = await getCachedPosData('menu');
+                if (cached) return { data: cached };
+                throw err;
+            }
+        },
         staleTime: 30000,
     });
 
     const { data: tablesData, refetch: refetchTables } = useQuery({
         queryKey: ['pos-tables'],
-        queryFn: () => tableAPI.list({ per_page: 100 }),
+        queryFn: async () => {
+            try {
+                const res = await tableAPI.list({ per_page: 100 });
+                await cachePosData('tables', res.data);
+                return res;
+            } catch (err) {
+                const cached = await getCachedPosData('tables');
+                if (cached) return { data: cached };
+                throw err;
+            }
+        },
         staleTime: 10000,
     });
 
@@ -133,8 +169,71 @@ export default function POSPage() {
         setVoucherInput(cart?.voucherCode ?? '');
     }, [cart?.id]);
 
+    useEffect(() => {
+        async function loadShift() {
+            try {
+                const res = await posAPI.currentShift();
+                setCurrentShift(res.data?.data ?? null);
+            } catch {
+                setCurrentShift(null);
+            }
+        }
+
+        loadShift();
+    }, []);
+
+    useEffect(() => {
+        const syncNow = async () => {
+            const { synced } = await syncQueuedOrders((payload) => posAPI.createOrder(payload));
+            if (synced > 0) {
+                toast.success(`Synced ${synced} offline order(s)`);
+                refetchTables();
+            }
+        };
+
+        syncNow();
+        window.addEventListener('online', syncNow);
+        return () => window.removeEventListener('online', syncNow);
+    }, [refetchTables]);
+
+    async function handleOpenShift() {
+        const input = window.prompt('Opening cash amount (BDT)');
+        if (!input) return;
+        const amount = parseFloat(input);
+        if (Number.isNaN(amount) || amount < 0) {
+            toast.error('Enter a valid opening cash amount');
+            return;
+        }
+
+        try {
+            const res = await posAPI.openShift({ opening_cash: amount });
+            setCurrentShift(res.data?.data ?? null);
+            toast.success('Shift opened');
+        } catch (err) {
+            toast.error(err.response?.data?.message ?? 'Failed to open shift');
+        }
+    }
+
+    async function handleCloseShift() {
+        const input = window.prompt('Closing cash amount (BDT)');
+        if (!input) return;
+        const amount = parseFloat(input);
+        if (Number.isNaN(amount) || amount < 0) {
+            toast.error('Enter a valid closing cash amount');
+            return;
+        }
+
+        try {
+            await posAPI.closeShift({ closing_cash: amount });
+            setCurrentShift(null);
+            toast.success('Shift closed');
+        } catch (err) {
+            toast.error(err.response?.data?.message ?? 'Failed to close shift');
+        }
+    }
+
     // ── Cart totals ────────────────────────────────────────────────────────────
-    const totals = store.getCartTotals(vatRate, vatInclusive);
+    const totals = store.getCartTotals(vatRate, vatInclusive, sdRate);
 
     // ── Apply voucher ──────────────────────────────────────────────────────────
     async function applyVoucher() {
@@ -184,13 +283,34 @@ export default function POSPage() {
                 <div className="px-4 pt-4 pb-3 border-b border-gray-100 space-y-2">
                     <div className="flex items-center justify-between">
                         <h1 className="text-base font-semibold text-gray-800">POS Terminal</h1>
-                        <button
-                            onClick={() => { refetchMenu(); refetchTables(); }}
-                            className="text-gray-400 hover:text-brand-700 p-1 rounded"
-                            title="Refresh menu & tables"
-                        >
-                            <HiOutlineRefresh className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <div className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${currentShift ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                                <HiOutlineClock className="w-3.5 h-3.5" />
+                                {currentShift ? 'Shift Open' : 'Shift Closed'}
+                            </div>
+                            {currentShift ? (
+                                <button
+                                    onClick={handleCloseShift}
+                                    className="text-xs px-2 py-1 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                                >
+                                    Close Shift
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleOpenShift}
+                                    className="text-xs px-2 py-1 rounded-md border border-green-200 text-green-700 hover:bg-green-50"
+                                >
+                                    Open Shift
+                                </button>
+                            )}
+                            <button
+                                onClick={() => { refetchMenu(); refetchTables(); }}
+                                className="text-gray-400 hover:text-blue-500 p-1 rounded"
+                                title="Refresh menu & tables"
+                            >
+                                <HiOutlineRefresh className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Held order tabs */}
@@ -386,6 +506,42 @@ export default function POSPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* Delivery: customer + address */}
+                    {cart.orderType === 'delivery' && (
+                        <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-xs text-gray-500 mb-1 font-medium">Customer Name *</label>
+                                    <input
+                                        value={cart.customerName}
+                                        onChange={(e) => store.setCustomer(e.target.value, cart.customerPhone)}
+                                        placeholder="Name"
+                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-500 mb-1 font-medium">Phone *</label>
+                                    <input
+                                        value={cart.customerPhone}
+                                        onChange={(e) => store.setCustomer(cart.customerName, e.target.value)}
+                                        placeholder="01XXXXXXXXX"
+                                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1 font-medium">Delivery Address *</label>
+                                <textarea
+                                    value={cart.deliveryAddress ?? ''}
+                                    onChange={(e) => store.setDeliveryAddress(e.target.value)}
+                                    placeholder="House, road, area"
+                                    rows={2}
+                                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Cart items */}
@@ -513,6 +669,12 @@ export default function POSPage() {
                                 <span>৳{totals.vat.toFixed(2)}</span>
                             </div>
                         )}
+                        {totals.sd > 0 && (
+                            <div className="flex justify-between text-gray-500">
+                                <span>SD ({sdRate}%){vatInclusive ? ' (incl.)' : ''}</span>
+                                <span>৳{totals.sd.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between font-bold text-gray-900 text-base pt-1 border-t border-gray-200">
                             <span>Grand Total</span>
                             <span>৳{totals.grandTotal.toFixed(2)}</span>
@@ -522,9 +684,11 @@ export default function POSPage() {
                     {/* Collect Payment CTA */}
                     <button
                         disabled={
+                            !currentShift ||
                             cart.items.length === 0 ||
                             (cart.orderType === 'dine' && !cart.tableId) ||
-                            (cart.orderType === 'parcel' && !cart.customerName?.trim())
+                            (cart.orderType === 'parcel' && !cart.customerName?.trim()) ||
+                            (cart.orderType === 'delivery' && (!cart.customerName?.trim() || !cart.customerPhone?.trim() || !cart.deliveryAddress?.trim()))
                         }
                         onClick={() => setShowCheckout(true)}
                         className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors text-sm"
@@ -538,6 +702,12 @@ export default function POSPage() {
                     )}
                     {cart.orderType === 'parcel' && !cart.customerName?.trim() && cart.items.length > 0 && (
                         <p className="text-xs text-center text-amber-600">Customer name is required for takeaway</p>
+                    )}
+                    {cart.orderType === 'delivery' && (!cart.customerName?.trim() || !cart.customerPhone?.trim() || !cart.deliveryAddress?.trim()) && cart.items.length > 0 && (
+                        <p className="text-xs text-center text-amber-600">Delivery orders require name, phone, and address</p>
+                    )}
+                    {!currentShift && cart.items.length > 0 && (
+                        <p className="text-xs text-center text-amber-600">Open a shift before collecting payment</p>
                     )}
                 </div>
             </div>

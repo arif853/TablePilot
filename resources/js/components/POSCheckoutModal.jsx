@@ -3,13 +3,13 @@ import {
     HiOutlineCash,
     HiOutlineCreditCard,
     HiOutlineDeviceMobile,
-    HiOutlinePrinter,
     HiOutlineX,
     HiOutlineCheckCircle,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { posAPI } from '../services/api';
 import { orderAPI } from '../services/api';
+import { queueOfflineOrder } from '../services/posOffline';
 import POSInvoice from './POSInvoice';
 
 const PAYMENT_METHODS = [
@@ -26,10 +26,28 @@ const PAYMENT_METHODS = [
         color: 'purple',
     },
     {
-        id: 'mobile_banking',
-        label: 'Mobile Banking',
+        id: 'bkash',
+        label: 'bKash',
         icon: HiOutlineDeviceMobile,
         color: 'green',
+    },
+    {
+        id: 'nagad',
+        label: 'Nagad',
+        icon: HiOutlineDeviceMobile,
+        color: 'green',
+    },
+    {
+        id: 'rocket',
+        label: 'Rocket',
+        icon: HiOutlineDeviceMobile,
+        color: 'green',
+    },
+    {
+        id: 'split',
+        label: 'Split',
+        icon: HiOutlineCreditCard,
+        color: 'purple',
     },
 ];
 
@@ -45,6 +63,10 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
     const [transactionId, setTransactionId] = useState('');
     const [loading, setLoading]             = useState(false);
     const [invoiceData, setInvoiceData]     = useState(null);
+    const [splitRows, setSplitRows]         = useState([
+        { method: 'cash', amount: '' },
+        { method: 'card', amount: '' },
+    ]);
 
     const change = paymentMethod === 'cash'
         ? Math.max(0, parseFloat(tendered || 0) - totals.grandTotal)
@@ -53,7 +75,8 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
     const canSubmit =
         cart.items.length > 0 &&
         !loading &&
-        (paymentMethod !== 'cash' || parseFloat(tendered || 0) >= totals.grandTotal);
+        (paymentMethod !== 'cash' || parseFloat(tendered || 0) >= totals.grandTotal) &&
+        (paymentMethod !== 'split' || Math.abs(splitRows.reduce((s, r) => s + parseFloat(r.amount || 0), 0) - totals.grandTotal) <= 0.01);
 
     async function placeOrder(payStatus) {
         setLoading(true);
@@ -63,6 +86,7 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                 table_id:        cart.tableId ?? undefined,
                 customer_name:   cart.customerName || undefined,
                 customer_phone:  cart.customerPhone || undefined,
+                delivery_address: cart.deliveryAddress || undefined,
                 notes:           cart.notes || undefined,
                 items: cart.items.map((i) => ({
                     menu_item_id:         i.menu_item_id,
@@ -73,6 +97,9 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                 payment_method:  paymentMethod,
                 payment_status:  payStatus,
                 transaction_id:  transactionId || undefined,
+                split_payments: paymentMethod === 'split'
+                    ? splitRows.map((row) => ({ method: row.method, amount: parseFloat(row.amount || 0) }))
+                    : undefined,
             };
 
             const res = await posAPI.createOrder(payload);
@@ -84,6 +111,13 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
 
             toast.success('Order created!');
         } catch (err) {
+            if (!navigator.onLine || !err.response) {
+                await queueOfflineOrder(payload);
+                toast.success('Offline: order queued and will sync automatically');
+                onSuccess();
+                return;
+            }
+
             const msg = err.response?.data?.message ?? 'Failed to create order';
             toast.error(msg);
             setLoading(false);
@@ -189,10 +223,10 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                     )}
 
                     {/* Card / Mobile banking: reference field */}
-                    {(paymentMethod === 'card' || paymentMethod === 'mobile_banking') && (
+                    {(paymentMethod === 'card' || paymentMethod === 'bkash' || paymentMethod === 'nagad' || paymentMethod === 'rocket') && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                {paymentMethod === 'card' ? 'Card / POS Reference No.' : 'bKash / Nagad Transaction ID'}
+                                {paymentMethod === 'card' ? 'Card / POS Reference No.' : 'Mobile Banking Transaction ID'}
                                 <span className="text-gray-400 font-normal ml-1">(optional)</span>
                             </label>
                             <input
@@ -203,6 +237,56 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none"
                                 autoFocus
                             />
+                        </div>
+                    )}
+
+                    {paymentMethod === 'split' && (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-gray-700">Split Payment (BDT)</p>
+                            {splitRows.map((row, idx) => (
+                                <div key={idx} className="grid grid-cols-2 gap-2">
+                                    <select
+                                        value={row.method}
+                                        onChange={(e) => {
+                                            const next = [...splitRows];
+                                            next[idx] = { ...next[idx], method: e.target.value };
+                                            setSplitRows(next);
+                                        }}
+                                        className="border border-gray-300 rounded-lg px-2 py-2 text-sm"
+                                    >
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                        <option value="bkash">bKash</option>
+                                        <option value="nagad">Nagad</option>
+                                        <option value="rocket">Rocket</option>
+                                    </select>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={row.amount}
+                                        onChange={(e) => {
+                                            const next = [...splitRows];
+                                            next[idx] = { ...next[idx], amount: e.target.value };
+                                            setSplitRows(next);
+                                        }}
+                                        placeholder="Amount"
+                                        className="border border-gray-300 rounded-lg px-2 py-2 text-sm"
+                                    />
+                                </div>
+                            ))}
+                            <div className="flex items-center justify-between text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setSplitRows([...splitRows, { method: 'cash', amount: '' }])}
+                                    className="text-blue-600 hover:text-blue-700"
+                                >
+                                    + Add payment line
+                                </button>
+                                <span className={Math.abs(splitRows.reduce((s, r) => s + parseFloat(r.amount || 0), 0) - totals.grandTotal) <= 0.01 ? 'text-green-600' : 'text-red-600'}>
+                                    Total: ৳{splitRows.reduce((s, r) => s + parseFloat(r.amount || 0), 0).toFixed(2)}
+                                </span>
+                            </div>
                         </div>
                     )}
 

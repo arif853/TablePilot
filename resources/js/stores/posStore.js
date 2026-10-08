@@ -7,11 +7,12 @@ function emptyCart(label = 'Order 1') {
     return {
         id: Date.now().toString(),
         label,
-        orderType: 'dine',   // dine | parcel | quick
+        orderType: 'dine',   // dine | parcel | quick | delivery
         tableId: null,
         tableName: null,
         customerName: '',
         customerPhone: '',
+        deliveryAddress: '',
         notes: '',
         items: [],
         voucherCode: '',
@@ -81,10 +82,11 @@ export const usePosStore = create(
             },
 
             setOrderType(type) {
-                get()._updateActive(() => ({
+                get()._updateActive((cart) => ({
                     orderType: type,
                     tableId: type !== 'dine' ? null : undefined,
                     tableName: type !== 'dine' ? null : undefined,
+                    deliveryAddress: type === 'delivery' ? (cart.deliveryAddress ?? '') : '',
                 }));
             },
 
@@ -94,6 +96,10 @@ export const usePosStore = create(
 
             setCustomer(name, phone) {
                 get()._updateActive(() => ({ customerName: name, customerPhone: phone }));
+            },
+
+            setDeliveryAddress(deliveryAddress) {
+                get()._updateActive(() => ({ deliveryAddress }));
             },
 
             setNotes(notes) {
@@ -176,29 +182,50 @@ export const usePosStore = create(
             },
 
             // ── Totals ─────────────────────────────────────────────────
-            getCartTotals(vatRate = TAX_RATE_DEFAULT, vatInclusive = false) {
+            getCartTotals(vatRate = TAX_RATE_DEFAULT, vatInclusive = false, sdRate = 0) {
                 const cart = get().getActiveCart();
-                if (!cart) return { subtotal: 0, discount: 0, netAmount: 0, vat: 0, grandTotal: 0 };
+                if (!cart) {
+                    return {
+                        subtotal: 0,
+                        discount: 0,
+                        netAmount: 0,
+                        vat: 0,
+                        sd: 0,
+                        grandTotal: 0,
+                    };
+                }
 
                 const subtotal = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
                 const discount = cart.voucherDiscount ?? 0;
                 const afterDiscount = Math.max(0, subtotal - discount);
 
-                let vat, netAmount, grandTotal;
+                let vat;
+                let sd;
+                let netAmount;
+                let grandTotal;
 
                 if (vatInclusive) {
-                    // VAT is already included in prices
-                    vat = Math.round(afterDiscount * (vatRate / (100 + vatRate)) * 100) / 100;
-                    netAmount = Math.round((afterDiscount - vat) * 100) / 100;
+                    // VAT and SD are already included in prices.
+                    const combinedRate = vatRate + sdRate;
+                    const taxTotal = combinedRate > 0
+                        ? Math.round(afterDiscount * (combinedRate / (100 + combinedRate)) * 100) / 100
+                        : 0;
+
+                    vat = combinedRate > 0
+                        ? Math.round(taxTotal * (vatRate / combinedRate) * 100) / 100
+                        : 0;
+                    sd = Math.round((taxTotal - vat) * 100) / 100;
+                    netAmount = Math.round((afterDiscount - taxTotal) * 100) / 100;
                     grandTotal = afterDiscount;
                 } else {
-                    // VAT exclusive — add on top
+                    // VAT/SD exclusive — add on top
                     netAmount = afterDiscount;
                     vat = Math.round(afterDiscount * (vatRate / 100) * 100) / 100;
-                    grandTotal = afterDiscount + vat;
+                    sd = Math.round(afterDiscount * (sdRate / 100) * 100) / 100;
+                    grandTotal = afterDiscount + vat + sd;
                 }
 
-                return { subtotal, discount, netAmount, vat, grandTotal };
+                return { subtotal, discount, netAmount, vat, sd, grandTotal };
             },
 
             getTotalItems() {

@@ -264,6 +264,14 @@ class OrderController extends BaseApiController
                 'date'            => $order->created_at->toIso8601String(),
                 'order_number'    => $order->order_number,
             ],
+            'order' => [
+                'type' => $order->type,
+                'table_number' => $order->table?->table_number,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'delivery_address' => $order->delivery_address,
+                'created_at' => $order->created_at->toIso8601String(),
+            ],
             'restaurant' => $tenant ? [
                 'name'       => $tenant->name,
                 'address'    => $tenant->address,
@@ -285,12 +293,15 @@ class OrderController extends BaseApiController
                 'net_amount'  => $order->net_amount,
                 'vat_rate'    => $order->vat_rate,
                 'vat_amount'  => $order->vat_amount,
+                'sd_rate'     => $order->sd_rate,
+                'sd_amount'   => $order->sd_amount,
                 'grand_total' => $order->grand_total,
             ],
             'payment' => [
                 'method' => $order->payment_method,
                 'status' => $order->payment_status,
                 'paid_at' => $order->paid_at?->toIso8601String(),
+                'split_payments' => $order->split_payment_details,
             ],
         ]);
     }

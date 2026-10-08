@@ -13,14 +13,15 @@ class VatCalculationService
      * @param  array  $items        Array of ['price' => decimal, 'qty' => int]
      * @param  Tenant $tenant       The restaurant tenant
      * @param  float  $discount     Discount amount (pre-validated, must not exceed subtotal)
-     * @return array{subtotal: string, discount: string, net_amount: string, vat_rate: string, vat_amount: string, grand_total: string}
+     * @return array{subtotal: string, discount: string, net_amount: string, vat_rate: string, vat_amount: string, sd_rate: string, sd_amount: string, grand_total: string}
      */
     public function calculate(array $items, Tenant $tenant, float $discount = 0): array
     {
         $vatRate    = (float) $tenant->default_vat_rate;
+        $sdRate     = (float) ($tenant->default_sd_rate ?? 0);
         $vatInclusive = (bool) $tenant->vat_inclusive;
 
-        return $this->computeTotals($items, $vatRate, $vatInclusive, $discount);
+        return $this->computeTotals($items, $vatRate, $sdRate, $vatInclusive, $discount);
     }
 
     /**
@@ -28,11 +29,12 @@ class VatCalculationService
      *
      * @param  array  $items        Array of ['price' => string|float, 'qty' => int]
      * @param  float  $vatRate      VAT rate as percentage (e.g. 5.00)
-     * @param  bool   $vatInclusive Whether prices already include VAT
+    * @param  float  $sdRate       SD rate as percentage (e.g. 10.00)
+    * @param  bool   $vatInclusive Whether prices already include VAT
      * @param  float  $discount     Flat discount amount
-     * @return array{subtotal: string, discount: string, net_amount: string, vat_rate: string, vat_amount: string, grand_total: string}
+    * @return array{subtotal: string, discount: string, net_amount: string, vat_rate: string, vat_amount: string, sd_rate: string, sd_amount: string, grand_total: string}
      */
-    public function computeTotals(array $items, float $vatRate, bool $vatInclusive, float $discount = 0): array
+    public function computeTotals(array $items, float $vatRate, float $sdRate, bool $vatInclusive, float $discount = 0): array
     {
         // Step 1: Subtotal = sum of (price * qty) using bcmath for precision
         $subtotal = '0.00';
@@ -56,15 +58,23 @@ class VatCalculationService
 
         // Step 3: VAT calculation
         $vatRateStr = number_format(round($vatRate, 2), 2, '.', '');
+        $sdRateStr = number_format(round($sdRate, 2), 2, '.', '');
 
         if ($vatInclusive) {
-            // VAT is already included in prices
-            // vat = net_amount × (vat_rate / (100 + vat_rate))
-            $divisor   = bcadd('100', $vatRateStr, 2);
-            $vatAmount = bcdiv(bcmul($netAmount, $vatRateStr, 4), $divisor, 2);
+            // VAT+SD are already included in prices.
+            $combinedRate = bcadd($vatRateStr, $sdRateStr, 2);
+            $divisor = bcadd('100', $combinedRate, 2);
+            $taxTotal = bcdiv(bcmul($netAmount, $combinedRate, 4), $divisor, 2);
 
-            // Actual net (excluding VAT) = net_amount - vat
-            $actualNet = bcsub($netAmount, $vatAmount, 2);
+            $vatAmount = '0.00';
+            $sdAmount = '0.00';
+            if (bccomp($combinedRate, '0.00', 2) > 0) {
+                $vatAmount = bcdiv(bcmul($taxTotal, $vatRateStr, 4), $combinedRate, 2);
+                $sdAmount = bcsub($taxTotal, $vatAmount, 2);
+            }
+
+            // Actual net (excluding VAT and SD) = net_amount - taxTotal
+            $actualNet = bcsub($netAmount, $taxTotal, 2);
 
             // Grand total = original net_amount (prices already include VAT)
             $grandTotal = $netAmount;
@@ -72,10 +82,10 @@ class VatCalculationService
             // Update net_amount to the VAT-exclusive portion
             $netAmount = $actualNet;
         } else {
-            // VAT exclusive — add VAT on top
-            // vat = net_amount × (vat_rate / 100)
-            $vatAmount  = bcdiv(bcmul($netAmount, $vatRateStr, 4), '100', 2);
-            $grandTotal = bcadd($netAmount, $vatAmount, 2);
+            // VAT/SD exclusive — add both taxes on top.
+            $vatAmount = bcdiv(bcmul($netAmount, $vatRateStr, 4), '100', 2);
+            $sdAmount = bcdiv(bcmul($netAmount, $sdRateStr, 4), '100', 2);
+            $grandTotal = bcadd($netAmount, bcadd($vatAmount, $sdAmount, 2), 2);
         }
 
         return [
@@ -84,6 +94,8 @@ class VatCalculationService
             'net_amount'  => $netAmount,
             'vat_rate'    => $vatRateStr,
             'vat_amount'  => $vatAmount,
+            'sd_rate'     => $sdRateStr,
+            'sd_amount'   => $sdAmount,
             'grand_total' => $grandTotal,
         ];
     }

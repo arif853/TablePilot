@@ -271,6 +271,10 @@ export const customerAPI = {
 // POS Terminal
 export const posAPI = {
     createOrder: (data) => api.post('/pos/orders', data),
+    currentShift: () => api.get('/pos/shifts/current'),
+    listShifts: (params) => api.get('/pos/shifts', { params }),
+    openShift: (data) => api.post('/pos/shifts/open', data),
+    closeShift: (data) => api.post('/pos/shifts/close', data),
 };
 
 // Contact (public)

@@ -27,20 +27,13 @@ class DatabaseSeeder extends Seeder
         $this->call([
             TenantSeeder::class,
             SubscriptionPlanSeeder::class,
-            ModuleSeeder::class,
-            PlanModuleSeeder::class,
         ]);
 
-        $defaultPlan = SubscriptionPlan::query()->where('slug', 'monthly')->first();
-
-        // User::factory(10)->create();
-        // SubscriptionPlan::factory(10)->create();
+        User::factory(10)->create();
+        SubscriptionPlan::factory(10)->create();
         // Category::factory(10)->create();
         // Tenant::factory(5)->create();
-        // Subscription::factory(5)->create([
-        //     'plan_id' => $defaultPlan?->id,
-        //     'plan_type' => $defaultPlan?->slug ?? 'monthly',
-        // ]);
+        // Subscription::factory(5)->create();
         // RestaurantTable::factory(10)->create();
         // MenuItem::factory(50)->create();
         // Voucher::factory(20)->create();
