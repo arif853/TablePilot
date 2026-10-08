@@ -13,6 +13,8 @@ const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const OtpVerificationPage = lazy(() => import('./pages/auth/OtpVerificationPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 
 // Dashboard Pages
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -95,6 +97,8 @@ export default function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify-email" element={<OtpVerificationPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                 {/* Dashboard Routes */}
                 <Route

@@ -105,7 +105,10 @@ export const apiErrorMessage = (err, fallback = 'Something went wrong') => {
 
 // Auth
 export const authAPI = {
-    login: (data) => api.post('/auth/login', data),
+    // A 401 here means wrong credentials, not an expired session: let the login form handle it
+    login: (data) => api.post('/auth/login', data, { skipAuthRedirect: true }),
+    forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+    resetPassword: (data) => api.post('/auth/reset-password', data),
     register: (data) => api.post('/auth/register', data),
     verifyOtp: (data) => api.post('/auth/verify-otp', data),
     resendOtp: (data) => api.post('/auth/resend-otp', data),

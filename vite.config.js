@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: [
         react(),
         VitePWA({
@@ -32,7 +32,8 @@ export default defineConfig({
         }),
     ],
     root: 'resources/js',
-    base: '/build/',
+    // Built assets are served from public/build; the dev server stays at the root so routes like /login work
+    base: command === 'build' ? '/build/' : '/',
     build: {
         outDir: '../../public/build',
         emptyOutDir: true,
@@ -61,4 +62,4 @@ export default defineConfig({
             },
         },
     },
-});
+}));
