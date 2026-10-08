@@ -22,7 +22,6 @@ class SubscriptionPlanFactory extends Factory
             'slug' => Str::slug($name) . '-' . Str::random(3),
             'price' => fake()->randomFloat(2, 499, 4999),
             'duration_days' => 30,
-            'features' => ['POS', 'Menu Management', 'Order Tracking'],
             'max_users' => 5,
             'is_active' => true,
             'sort_order' => 0,

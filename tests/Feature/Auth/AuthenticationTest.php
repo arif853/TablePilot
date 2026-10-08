@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\SubscriptionPlan;
+
 /**
  * Authentication Tests
  *
@@ -86,15 +88,20 @@ test('login validates required fields', function () {
 
 // ─── Register ───────────────────────────────────────────────────────
 test('user can register with valid data', function () {
+    $plan = SubscriptionPlan::factory()->create();
+
     $response = $this->postJson('/api/auth/register', [
         'name' => 'New User',
         'email' => 'new@test.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
+        'restaurant_name' => 'Test Restaurant',
+        'phone' => '01700000000',
+        'plan_id' => $plan->id,
     ]);
 
     $response->assertStatus(201)
-        ->assertJsonStructure(['access_token', 'user']);
+        ->assertJsonPath('data.next_step', 'verify_email');
 
     $this->assertDatabaseHas('users', [
         'email' => 'new@test.com',

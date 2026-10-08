@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateMenuItemRequest extends FormRequest
 {
@@ -14,7 +15,7 @@ class UpdateMenuItemRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category_id' => 'nullable|exists:categories,id',
+            'category_id' => ['nullable', Rule::exists('categories', 'id')->where('tenant_id', $this->user()?->tenant_id)],
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string|max:1000',
             'price' => 'sometimes|numeric|min:0',

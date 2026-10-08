@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,18 +25,32 @@ class TenantController extends BaseApiController
 {
     public function index(Request $request): JsonResponse
     {
+        // Lightweight unpaginated list for dropdowns (subscriptions, user assignment)
+        if ($request->boolean('all')) {
+            return $this->success(
+                Tenant::orderBy('name')->get(['id', 'name', 'slug', 'is_active', 'max_users'])
+            );
+        }
+
         $query = Tenant::query()
             ->withCount(['users', 'orders'])
-            ->with('activeSubscription');
+            ->with('activeSubscription.plan:id,name');
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
-        return $this->paginated($query->latest());
+        if ($status = $request->get('status')) {
+            $query->where('is_active', $status === 'active');
+        }
+
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+
+        return $this->paginated($query->latest(), $perPage);
     }
 
     public function store(StoreTenantRequest $request): JsonResponse
@@ -78,6 +93,26 @@ class TenantController extends BaseApiController
                     'custom' => $request->custom_days ?? 30,
                     default => 30,
                 };
+
+            if ($planModel && $request->boolean('start_trial')) {
+                app(SubscriptionService::class)->createTrialSubscription(
+                    $tenant,
+                    $planModel,
+                    (int) ($request->trial_days ?: $planModel->trial_days ?: config('saas.trial.default_days', 14))
+                );
+
+                // Trial uses the plan's max_users unless the admin set one explicitly
+                if ($request->filled('max_users')) {
+                    $tenant->update(['max_users' => $request->max_users]);
+                }
+
+                AuditLogger::logCreated($tenant);
+
+                return $this->created([
+                    'tenant' => $tenant->fresh()->load('activeSubscription'),
+                    'admin' => $admin->fresh(),
+                ], 'Restaurant onboarded on a free trial');
+            }
 
             // Use plan max_users if a plan was selected
             if ($planModel && !$request->filled('max_users')) {

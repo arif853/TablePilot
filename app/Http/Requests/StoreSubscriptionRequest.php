@@ -19,7 +19,7 @@ class StoreSubscriptionRequest extends FormRequest
             'plan_id' => 'nullable|exists:subscription_plans,id',
             'plan_type' => 'nullable|in:monthly,yearly,custom',
             'amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|string|in:bkash,sslcommerz,manual',
+            'payment_method' => 'nullable|string|in:bkash,sslcommerz,manual,bank',
             'payment_ref' => 'nullable|string',
             'transaction_id' => 'nullable|string',
             'starts_at' => 'nullable|date',

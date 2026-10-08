@@ -309,7 +309,9 @@ $v1Routes = function () {
         */
         Route::middleware('role:super_admin')->prefix('admin')->group(function () {
 
-            // Tenant management
+            // Tenant management (static paths must be registered before the apiResource's {tenant} wildcard)
+            Route::get('tenants/export', [TenantController::class, 'export']);
+            Route::post('tenants/bulk-action', [TenantController::class, 'bulkAction']);
             Route::apiResource('tenants', TenantController::class);
             Route::get('tenants-dashboard', [TenantController::class, 'dashboard']);
             Route::apiResource('tenant-applications', TenantApplicationController::class)->only(['index', 'show']);
@@ -317,6 +319,7 @@ $v1Routes = function () {
             Route::post('tenant-applications/{id}/reject', [TenantApplicationController::class, 'reject']);
 
             // Subscriptions
+            Route::get('subscriptions/expiring-soon', [SubscriptionController::class, 'expiringSoon']);
             Route::apiResource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'show']);
             Route::post('subscriptions/{id}/cancel', [SubscriptionController::class, 'cancel']);
 
@@ -356,11 +359,8 @@ $v1Routes = function () {
             Route::get('tenants/{id}/stats', [TenantController::class, 'stats']);
             Route::post('tenants/{id}/impersonate', [TenantController::class, 'impersonate']);
             Route::post('tenants/{id}/send-email', [TenantController::class, 'sendEmail']);
-            Route::post('tenants/bulk-action', [TenantController::class, 'bulkAction']);
-            Route::get('tenants/export', [TenantController::class, 'export']);
 
             // Advanced Subscription Management
-            Route::get('subscriptions/expiring-soon', [SubscriptionController::class, 'expiringSoon']);
             Route::post('subscriptions/{id}/extend', [SubscriptionController::class, 'extend']);
             Route::post('subscriptions/{tenantId}/renew', [SubscriptionController::class, 'renewManual']);
 

@@ -67,6 +67,10 @@ class TenantApplicationController extends BaseApiController
             return $this->error('Application must be email verified before approval.', 422);
         }
 
+        if (Tenant::where('email', $application->user->email)->exists()) {
+            return $this->error('Another restaurant is already registered with this email address.', 422);
+        }
+
         $admin = Auth::user();
 
         $tenant = DB::transaction(function () use ($application, $validated, $admin) {
@@ -103,6 +107,9 @@ class TenantApplicationController extends BaseApiController
                     isTrial: false,
                     initiatedBy: 'super_admin'
                 );
+            } else {
+                // Without a subscription row the tenant would be locked out by EnsureActiveSubscription
+                $this->subscriptionService->createTrialSubscription($tenant, $plan, (int) $plan->trial_days);
             }
 
             $application->update([

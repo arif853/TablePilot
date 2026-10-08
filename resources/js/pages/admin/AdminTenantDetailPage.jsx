@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+import { useModuleStore } from '../../stores/moduleStore';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -21,7 +22,8 @@ export default function AdminTenantDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const { setToken, setUser } = useAuthStore();
+    const startImpersonation = useAuthStore((s) => s.startImpersonation);
+    const clearModules = useModuleStore((s) => s.clear);
 
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -44,15 +46,8 @@ export default function AdminTenantDetailPage() {
         mutationFn: () => adminAPI.tenants.impersonate(id),
         onSuccess: (response) => {
             const { token, user, tenant } = response.data.data;
-            // Store original admin token
-            const originalToken = useAuthStore.getState().token;
-            const originalUser = useAuthStore.getState().user;
-            localStorage.setItem('admin_original_token', originalToken);
-            localStorage.setItem('admin_original_user', JSON.stringify(originalUser));
-
-            // Set impersonation token
-            setToken(token);
-            setUser(user);
+            startImpersonation(user, token);
+            clearModules();
             toast.success(`Now impersonating ${tenant.name}`);
             navigate('/dashboard');
         },

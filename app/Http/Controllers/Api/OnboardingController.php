@@ -151,7 +151,13 @@ class OnboardingController extends BaseApiController
 
         // Check if SSLCommerz is enabled
         if (!$sslCommerz->isEnabled()) {
-            // If gateway is not configured, create subscription directly (for dev/testing)
+            // Free activation is a local/testing convenience only; in production
+            // an unconfigured gateway must never hand out subscriptions.
+            if (!app()->environment(['local', 'testing'])) {
+                cache()->forget("subscription_payment:{$tranId}");
+                return $this->error('Online payment is not available at this time.', 503);
+            }
+
             return $this->createSubscriptionDirectly($tenant, $plan, 'manual', $tranId);
         }
 
@@ -189,33 +195,18 @@ class OnboardingController extends BaseApiController
      */
     public function paymentSuccess(Request $request): \Illuminate\Http\RedirectResponse
     {
-        $tranId = $request->input('tran_id');
-        $subscriptionData = cache()->get("subscription_payment:{$tranId}");
-
+        $tranId = (string) $request->input('tran_id');
         $frontendUrl = config('app.frontend_url', config('app.url'));
 
-        if (!$subscriptionData) {
-            return redirect("{$frontendUrl}/onboarding/payment?status=failed&message=Invalid+or+expired+payment+session");
+        $result = $this->settleGatewayPayment($request, $tranId);
+
+        if ($result === 'ok') {
+            return redirect("{$frontendUrl}/onboarding/payment?status=success&tran_id={$tranId}");
         }
 
-        $sslCommerz = new SslCommerzService();
+        $message = $result === 'validation_failed' ? 'Payment+validation+failed' : 'Invalid+or+expired+payment+session';
 
-        if (!$sslCommerz->validatePayment($request->all())) {
-            return redirect("{$frontendUrl}/onboarding/payment?status=failed&message=Payment+validation+failed");
-        }
-
-        // Create subscription
-        $this->activateSubscription(
-            $subscriptionData,
-            $request->input('card_type', 'online'),
-            $tranId,
-            $request->input('val_id')
-        );
-
-        // Clear cache
-        cache()->forget("subscription_payment:{$tranId}");
-
-        return redirect("{$frontendUrl}/onboarding/payment?status=success&tran_id={$tranId}");
+        return redirect("{$frontendUrl}/onboarding/payment?status=failed&message={$message}");
     }
 
     /**
@@ -249,42 +240,47 @@ class OnboardingController extends BaseApiController
      */
     public function paymentIpn(Request $request): JsonResponse
     {
-        $tranId = $request->input('tran_id');
-        $subscriptionData = cache()->get("subscription_payment:{$tranId}");
+        $tranId = (string) $request->input('tran_id');
 
-        if (!$subscriptionData) {
-            Log::warning("IPN received for unknown transaction: {$tranId}");
-            return response()->json(['status' => 'ignored']);
+        $result = $this->settleGatewayPayment($request, $tranId);
+
+        if ($result !== 'ok') {
+            Log::warning("Onboarding IPN {$result} for transaction: {$tranId}");
         }
 
-        $sslCommerz = new SslCommerzService();
+        return response()->json(['status' => $result]);
+    }
 
-        if (!$sslCommerz->validatePayment($request->all())) {
-            Log::warning("IPN validation failed for transaction: {$tranId}");
-            return response()->json(['status' => 'validation_failed']);
+    /**
+     * Verify a callback with the gateway and activate the subscription once.
+     * Shared by the redirect and the IPN, which usually arrive together.
+     *
+     * @return 'ok'|'ignored'|'validation_failed'
+     */
+    protected function settleGatewayPayment(Request $request, string $tranId): string
+    {
+        $pending = cache()->get("subscription_payment:{$tranId}");
+
+        if (!$pending) {
+            // Already settled by the other callback?
+            return $tranId !== '' && Subscription::withoutGlobalScopes()->where('transaction_id', $tranId)->exists()
+                ? 'ok'
+                : 'ignored';
         }
 
-        // Check if subscription already created (race condition with redirect callback)
-        $existing = Subscription::withoutGlobalScopes()
-            ->where('transaction_id', $tranId)
-            ->where('status', 'active')
-            ->exists();
-
-        if ($existing) {
-            Log::info("IPN: Subscription already active for transaction {$tranId}");
-            return response()->json(['status' => 'already_processed']);
+        if (!(new SslCommerzService())->validatePayment($request->all(), $tranId, $pending['amount'] ?? null)) {
+            return 'validation_failed';
         }
 
-        $this->activateSubscription(
-            $subscriptionData,
-            $request->input('card_type', 'online'),
+        $this->subscriptionService->activateFromGatewayPayment(
             $tranId,
-            $request->input('val_id')
+            $pending,
+            (string) $request->input('card_type', 'online'),
+            $request->input('val_id'),
+            'Self-service onboarding subscription',
         );
 
-        cache()->forget("subscription_payment:{$tranId}");
-
-        return response()->json(['status' => 'ok']);
+        return 'ok';
     }
 
     /**

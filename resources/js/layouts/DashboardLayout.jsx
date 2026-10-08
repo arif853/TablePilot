@@ -83,7 +83,7 @@ const MENU_MODULE_MAP = {
 };
 
 export default function DashboardLayout() {
-    const { user, logout, updateUser } = useAuthStore();
+    const { user, logout, updateUser, isImpersonating, stopImpersonation } = useAuthStore();
     const hasModule = useModuleStore((s) => s.hasModule);
     const moduleIsLoaded = useModuleStore((s) => s.isLoaded);
     const fetchModules = useModuleStore((s) => s.fetchModules);
@@ -104,6 +104,12 @@ export default function DashboardLayout() {
         logout();
         clearModules();
         navigate('/login');
+    };
+
+    const handleStopImpersonation = () => {
+        stopImpersonation();
+        clearModules();
+        navigate('/dashboard/admin/tenants');
     };
 
     const toggleFullscreen = useCallback(() => {
@@ -389,6 +395,22 @@ export default function DashboardLayout() {
                         </div>
                     </div>
                 </header>
+
+                {/* Impersonation Banner — super admin is logged in as a tenant user */}
+                {user?.role !== 'super_admin' && isImpersonating() && (
+                    <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium bg-purple-600 text-white">
+                        <div className="flex items-center gap-2">
+                            <HiOutlineUser className="w-5 h-5 shrink-0" />
+                            <span>You are viewing as {user?.name}{user?.tenant?.name ? ` (${user.tenant.name})` : ''}.</span>
+                        </div>
+                        <button
+                            onClick={handleStopImpersonation}
+                            className="shrink-0 whitespace-nowrap rounded-lg border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold hover:bg-white/25 transition-colors"
+                        >
+                            Return to admin
+                        </button>
+                    </div>
+                )}
 
                 {/* Trial Banner — shown to restaurant admins during active trial */}
                 {graceInfo.show && (

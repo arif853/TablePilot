@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Order;
 use App\Models\Subscription;
-use App\Models\SubscriptionPlan;
-use App\Models\Tenant;
 use App\Services\SslCommerzService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
@@ -23,14 +21,23 @@ class PaymentController extends BaseApiController
         $this->sslCommerz = $sslCommerz;
     }
 
-    public function subscriptionCallback(Request $request): JsonResponse
+    /**
+     * Browser redirect target for subscription payments (success/fail/cancel
+     * all land here). Verifies with the gateway, then sends the user back to
+     * the dashboard.
+     */
+    public function subscriptionCallback(Request $request)
     {
-        return $this->handleSubscriptionGatewayPayload($request, 'sslcommerz');
+        $result = $this->processSubscriptionPayment($request, 'sslcommerz');
+        $status = $result['ok'] ? 'success' : 'failed';
+
+        return redirect(rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/subscription?status=' . $status);
     }
 
     public function bkashSubscriptionCallback(Request $request): JsonResponse
     {
-        return $this->handleSubscriptionGatewayPayload($request, 'bkash');
+        // No bKash verification is implemented. Never activate on an unverified callback.
+        return $this->error('bKash payments are not available.', 501);
     }
 
     /**
@@ -113,23 +120,15 @@ class PaymentController extends BaseApiController
         $order = $this->findOrderByTranId($tranId);
 
         if (!$order) {
-            return $this->redirectToOrder($order, 'failed');
+            return $this->redirectToOrder(null, 'failed');
         }
 
-        $isValid = $this->sslCommerz->validatePayment($request->all());
-
-        if (!$isValid) {
+        if (!$this->sslCommerz->validatePayment($request->all(), $tranId, $order->grand_total)) {
             Log::warning('SSLCommerz success callback validation failed', ['tran_id' => $tranId]);
             return $this->redirectToOrder($order, 'failed');
         }
 
-        if ($order->payment_status !== 'paid') {
-            $order->update([
-                'payment_status' => 'paid',
-                'paid_at'        => now(),
-                'transaction_id' => $valId ?: $tranId,
-            ]);
-        }
+        $this->markOrderPaid($order, $valId ?: $tranId);
 
         return $this->redirectToOrder($order, 'success');
     }
@@ -177,86 +176,88 @@ class PaymentController extends BaseApiController
             return $this->error('Order not found for transaction', 404);
         }
 
-        $isValid = $this->sslCommerz->validatePayment($request->all());
-
-        if (!$isValid) {
+        if (!$this->sslCommerz->validatePayment($request->all(), $tranId, $order->grand_total)) {
             Log::warning('SSLCommerz IPN validation failed', ['tran_id' => $tranId]);
             return $this->error('Invalid payment notification', 400);
         }
 
-        if ($order->payment_status !== 'paid') {
-            $order->update([
-                'payment_status' => 'paid',
-                'paid_at'        => now(),
-                'transaction_id' => $request->input('val_id') ?: $tranId,
-            ]);
-
-            return $this->success(null, 'Payment confirmed via IPN');
-        }
-
-        return $this->success(null, 'Payment already confirmed');
+        return $this->markOrderPaid($order, $request->input('val_id') ?: $tranId)
+            ? $this->success(null, 'Payment confirmed via IPN')
+            : $this->success(null, 'Payment already confirmed');
     }
 
     private function handleSubscriptionGatewayPayload(Request $request, string $gateway): JsonResponse
     {
-        $tranId = $request->input('tran_id') ?: $request->input('transaction_id');
-        $isSuccess = in_array($request->input('status'), ['VALID', 'success', 'SUCCESS', 'Completed'], true)
-            || $request->boolean('success')
-            || !empty($request->input('val_id'));
+        $result = $this->processSubscriptionPayment($request, $gateway);
 
-        if (!$tranId) {
-            return $this->error('Missing transaction reference', 422);
+        if (!$result['ok']) {
+            return $this->error($result['message'], 422);
         }
 
-        if (!$isSuccess) {
-            return $this->error('Payment not successful', 422);
+        return $this->success([
+            'subscription_id' => $result['subscription']->id,
+            'redirect_url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/subscription?status=success',
+        ], $result['message']);
+    }
+
+    /**
+     * Verify a subscription payment with the gateway and activate it once.
+     *
+     * @return array{ok: bool, message: string, subscription?: Subscription}
+     */
+    private function processSubscriptionPayment(Request $request, string $gateway): array
+    {
+        $tranId = (string) $request->input('tran_id');
+
+        if ($tranId === '') {
+            return ['ok' => false, 'message' => 'Missing transaction reference'];
         }
 
         $pending = cache()->get("subscription_payment:{$tranId}");
 
         if (!$pending) {
-            return $this->error('Invalid or expired payment metadata', 422);
+            // Already processed (success redirect + IPN race)? Treat as success.
+            $existing = Subscription::withoutGlobalScopes()->where('transaction_id', $tranId)->first();
+
+            return $existing
+                ? ['ok' => true, 'message' => 'Subscription already active', 'subscription' => $existing]
+                : ['ok' => false, 'message' => 'Invalid or expired payment metadata'];
         }
 
-        $tenant = Tenant::find($pending['tenant_id'] ?? null);
-        $plan = SubscriptionPlan::find($pending['plan_id'] ?? null);
-
-        if (!$tenant || !$plan) {
-            return $this->error('Invalid tenant or plan metadata', 422);
+        // The payload is never trusted; only the gateway's own validation counts.
+        if ($gateway !== 'sslcommerz'
+            || !$this->sslCommerz->validatePayment($request->all(), $tranId, $pending['amount'] ?? null)) {
+            Log::warning('Subscription payment validation failed', ['tran_id' => $tranId, 'gateway' => $gateway]);
+            return ['ok' => false, 'message' => 'Payment could not be verified'];
         }
 
-        $existing = Subscription::withoutGlobalScopes()
-            ->where('transaction_id', $tranId)
-            ->whereIn('status', ['active', 'grace'])
-            ->first();
-
-        if ($existing) {
-            return $this->success([
-                'subscription_id' => $existing->id,
-                'redirect_url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/subscription?status=success',
-            ], 'Subscription already active');
-        }
-
-        $subscription = $this->subscriptionService->createSubscription(
-            tenant: $tenant,
-            plan: $plan,
-            paymentData: [
-                'amount' => $pending['amount'] ?? $plan->price,
-                'payment_method' => $gateway,
-                'payment_ref' => $request->input('val_id') ?? $request->input('payment_ref'),
-                'transaction_id' => $tranId,
-                'notes' => 'Auto-created via payment callback',
-            ],
-            isTrial: false,
-            initiatedBy: 'tenant'
+        $subscription = $this->subscriptionService->activateFromGatewayPayment(
+            $tranId,
+            $pending,
+            $gateway,
+            $request->input('val_id'),
+            'Auto-created via payment callback',
         );
 
-        cache()->forget("subscription_payment:{$tranId}");
+        return ['ok' => true, 'message' => 'Subscription activated successfully', 'subscription' => $subscription];
+    }
 
-        return $this->success([
-            'subscription_id' => $subscription->id,
-            'redirect_url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/subscription?status=success',
-        ], 'Subscription activated successfully');
+    /**
+     * Atomically flip an order to paid. Returns false if it was already paid
+     * (success redirect and IPN can race).
+     */
+    private function markOrderPaid(Order $order, string $reference): bool
+    {
+        $updated = Order::withoutGlobalScopes()
+            ->where('id', $order->id)
+            ->where('payment_status', '!=', 'paid')
+            ->update([
+                'payment_status' => 'paid',
+                'paid_at'        => now(),
+                'transaction_id' => $reference,
+            ]);
+
+        return $updated > 0;
     }
 
     private function isSubscriptionTranId(?string $tranId): bool

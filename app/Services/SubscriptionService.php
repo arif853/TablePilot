@@ -6,6 +6,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class SubscriptionService
@@ -61,6 +62,95 @@ class SubscriptionService
             ]);
 
             $this->modulePermissionService->invalidateCache($tenant);
+
+            return $subscription;
+        });
+    }
+
+    /**
+     * Start a free trial on the given plan. The trial is an is_trial subscription so
+     * EnsureActiveSubscription lets the tenant in; trial_ends_at mirrors its expiry.
+     */
+    public function createTrialSubscription(
+        Tenant $tenant,
+        SubscriptionPlan $plan,
+        int $days,
+        string $initiatedBy = 'super_admin'
+    ): Subscription {
+        return DB::transaction(function () use ($tenant, $plan, $days, $initiatedBy) {
+            $expiresAt = now()->addDays($days);
+
+            $subscription = Subscription::withoutGlobalScopes()->create([
+                'tenant_id' => $tenant->id,
+                'plan_id' => $plan->id,
+                'plan_type' => $plan->subscriptionType(),
+                'is_trial' => true,
+                'amount' => 0,
+                'payment_method' => 'manual',
+                'starts_at' => now(),
+                'expires_at' => $expiresAt,
+                'status' => 'active',
+                'initiated_by' => $initiatedBy,
+                'notes' => "{$days}-day free trial",
+            ]);
+
+            $tenant->update([
+                'is_active' => true,
+                'max_users' => $plan->max_users,
+                'trial_ends_at' => $expiresAt,
+            ]);
+
+            AuditLogger::log('subscription_created', $subscription, null, [
+                'tenant_id' => $tenant->id,
+                'plan_id' => $plan->id,
+                'is_trial' => true,
+                'initiated_by' => $initiatedBy,
+            ]);
+
+            $this->modulePermissionService->invalidateCache($tenant);
+
+            return $subscription;
+        });
+    }
+
+    /**
+     * Activate the subscription for a gateway-verified payment exactly once.
+     *
+     * Success redirect and IPN usually arrive together; the lock plus the
+     * transaction_id check make the second one a no-op that returns the
+     * subscription created by the first.
+     *
+     * @param  array $pending  Cached pending-payment data (tenant_id, plan_id, amount)
+     */
+    public function activateFromGatewayPayment(string $tranId, array $pending, string $method, ?string $paymentRef = null, string $notes = 'Activated via payment gateway'): Subscription
+    {
+        return Cache::lock("subscription_activation:{$tranId}", 30)->block(10, function () use ($tranId, $pending, $method, $paymentRef, $notes) {
+            $existing = Subscription::withoutGlobalScopes()
+                ->where('transaction_id', $tranId)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $tenant = Tenant::findOrFail($pending['tenant_id']);
+            $plan = SubscriptionPlan::findOrFail($pending['plan_id']);
+
+            $subscription = $this->createSubscription(
+                tenant: $tenant,
+                plan: $plan,
+                paymentData: [
+                    'amount' => $pending['amount'] ?? $plan->price,
+                    'payment_method' => $method,
+                    'payment_ref' => $paymentRef,
+                    'transaction_id' => $tranId,
+                    'notes' => $notes,
+                ],
+                isTrial: false,
+                initiatedBy: 'tenant'
+            );
+
+            Cache::forget("subscription_payment:{$tranId}");
 
             return $subscription;
         });

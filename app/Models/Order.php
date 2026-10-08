@@ -122,16 +122,25 @@ class Order extends Model
     }
 
     // Helpers
+    /**
+     * Format: ORD-{YYYYMMDD}-{TENANT_ID}-{SEQ}. order_number is globally
+     * unique, so the tenant id is part of it, and the sequence continues
+     * from the highest existing number (not a row count, which repeats
+     * after deletes). Call inside the transaction that holds the tenant's
+     * invoice-counter lock so concurrent orders are serialized.
+     */
     public static function generateOrderNumber(int $tenantId): string
     {
-        $prefix = 'ORD';
-        $date = now()->format('Ymd');
-        $count = self::withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->whereDate('created_at', today())
-            ->count() + 1;
+        $prefix = sprintf('ORD-%s-%d-', now()->format('Ymd'), $tenantId);
 
-        return sprintf('%s-%s-%04d', $prefix, $date, $count);
+        $last = self::withoutGlobalScopes()
+            ->where('order_number', 'like', $prefix . '%')
+            ->orderByDesc('order_number')
+            ->value('order_number');
+
+        $next = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
+
+        return sprintf('%s%04d', $prefix, $next);
     }
 
     public function canAdvanceStatus(): bool
@@ -151,6 +160,45 @@ class Order extends Model
 
         $this->update(['status' => $next]);
         return true;
+    }
+
+    /**
+     * Whether a manual status change is allowed: one step forward along
+     * STATUS_FLOW, or cancellation from any non-final state. Terminal
+     * states (completed/cancelled) cannot be changed.
+     */
+    public function canTransitionTo(string $newStatus): bool
+    {
+        if (in_array($this->status, ['completed', 'cancelled'], true)) {
+            return false;
+        }
+
+        return $newStatus === 'cancelled' || self::STATUS_FLOW[$this->status] === $newStatus;
+    }
+
+    /**
+     * Free the table (when no other active order uses it) and give back the
+     * voucher use. Call exactly once when an order reaches a terminal state.
+     */
+    public function releaseResources(bool $restoreVoucher = false): void
+    {
+        if ($this->table_id) {
+            $busy = self::withoutGlobalScopes()
+                ->where('table_id', $this->table_id)
+                ->where('id', '!=', $this->id)
+                ->active()
+                ->exists();
+
+            if (!$busy) {
+                RestaurantTable::withoutGlobalScopes()
+                    ->where('id', $this->table_id)
+                    ->update(['status' => 'available']);
+            }
+        }
+
+        if ($restoreVoucher && $this->voucher_id) {
+            Voucher::withoutGlobalScopes()->find($this->voucher_id)?->releaseUsage();
+        }
     }
 
     public function isDineIn(): bool

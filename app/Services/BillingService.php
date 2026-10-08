@@ -99,9 +99,15 @@ class BillingService
                 if ($voucher && $voucher->isValid()) {
                     // Calculate subtotal first for voucher
                     $subtotal = collect($calcItems)->sum(fn ($i) => bcmul((string) $i['price'], (string) $i['qty'], 2));
-                    $discount = $voucher->calculateDiscount($subtotal);
-                    $voucherId = $voucher->id;
-                    $voucher->incrementUsage();
+                    $discount = $voucher->calculateDiscount((float) $subtotal);
+
+                    // Only consume a use when it actually discounts (min_purchase met)
+                    // and the usage cap wasn't hit by a concurrent order.
+                    if ($discount > 0 && $voucher->incrementUsage()) {
+                        $voucherId = $voucher->id;
+                    } else {
+                        $discount = 0;
+                    }
                 }
             }
 

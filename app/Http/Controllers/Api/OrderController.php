@@ -95,7 +95,11 @@ class OrderController extends BaseApiController
             );
 
             // Broadcast new order event
-            broadcast(new NewOrderCreated($order))->toOthers();
+            try {
+                broadcast(new NewOrderCreated($order))->toOthers();
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             // If online payment, initiate SSLCommerz
             $paymentUrl = null;
@@ -167,6 +171,10 @@ class OrderController extends BaseApiController
         $oldStatus = $order->status;
         $newStatus = $request->status;
 
+        if (!$order->canTransitionTo($newStatus)) {
+            return $this->error("Cannot change order from '{$oldStatus}' to '{$newStatus}'", 422);
+        }
+
         $order->update(['status' => $newStatus]);
 
         AuditLogger::logAction('order_status_updated', $order, [
@@ -174,20 +182,11 @@ class OrderController extends BaseApiController
             'new_status' => $newStatus,
         ]);
 
-        // If completed and dine-in, free the table
-        if (in_array($newStatus, ['completed', 'cancelled']) && $order->table_id) {
-            $hasOtherActiveOrders = Order::where('table_id', $order->table_id)
-                ->where('id', '!=', $order->id)
-                ->active()
-                ->exists();
-
-            if (!$hasOtherActiveOrders) {
-                RestaurantTable::where('id', $order->table_id)
-                    ->update(['status' => 'available']);
-            }
+        if (in_array($newStatus, ['completed', 'cancelled'], true)) {
+            $order->releaseResources(restoreVoucher: $newStatus === 'cancelled');
         }
 
-        broadcast(new OrderStatusUpdated($order->fresh()))->toOthers();
+        $this->broadcastStatus($order);
 
         return $this->success($order->fresh()->load(['items.menuItem', 'table']), 'Order status updated');
     }
@@ -200,35 +199,30 @@ class OrderController extends BaseApiController
             return $this->notFound('Order not found');
         }
 
-        if ($order->isCompleted()) {
-            return $this->error('Cannot cancel a completed order', 422);
+        if (!$order->canTransitionTo('cancelled')) {
+            return $this->error("Cannot cancel an order that is {$order->status}", 422);
         }
 
+        $previous = $order->status;
         $order->update(['status' => 'cancelled']);
 
         AuditLogger::logAction('order_cancelled', $order, [
-            'previous_status' => $order->getOriginal('status'),
+            'previous_status' => $previous,
         ]);
-        if ($order->table_id) {
-            $hasOtherActiveOrders = Order::where('table_id', $order->table_id)
-                ->where('id', '!=', $order->id)
-                ->active()
-                ->exists();
 
-            if (!$hasOtherActiveOrders) {
-                RestaurantTable::where('id', $order->table_id)
-                    ->update(['status' => 'available']);
-            }
-        }
-
-        // Reverse voucher usage
-        if ($order->voucher_id) {
-            Voucher::where('id', $order->voucher_id)->decrement('used_count');
-        }
-
-        broadcast(new OrderStatusUpdated($order->fresh()))->toOthers();
+        $order->releaseResources(restoreVoucher: true);
+        $this->broadcastStatus($order);
 
         return $this->success($order->fresh(), 'Order cancelled');
+    }
+
+    private function broadcastStatus(Order $order): void
+    {
+        try {
+            broadcast(new OrderStatusUpdated($order->fresh()))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -346,6 +340,14 @@ class OrderController extends BaseApiController
 
         if (!$order) {
             return $this->notFound('Order not found');
+        }
+
+        if ($order->payment_status === 'paid') {
+            return $this->error('Order is already paid', 422);
+        }
+
+        if ($order->isCancelled()) {
+            return $this->error('Cannot mark a cancelled order as paid', 422);
         }
 
         $order->update([

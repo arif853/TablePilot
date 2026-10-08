@@ -3,7 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\Subscription;
+use App\Models\Module;
+use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
+use Database\Seeders\ModuleSeeder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -24,6 +27,28 @@ class SubscriptionFactory extends Factory
             'expires_at' => now()->addDays(30),
             'status' => 'active',
         ];
+    }
+
+    /**
+     * Module access is plan-driven: give the subscription a plan that
+     * includes every module unless the test supplied its own plan.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Subscription $subscription) {
+            if (!$subscription->plan_id) {
+                $subscription->plan_id = SubscriptionPlan::factory()->create()->id;
+                $subscription->save();
+            }
+
+            if (Module::count() === 0) {
+                (new ModuleSeeder)->run();
+            }
+
+            if ($subscription->plan->modules()->count() === 0) {
+                $subscription->plan->modules()->sync(Module::pluck('id'));
+            }
+        });
     }
 
     public function yearly(): static

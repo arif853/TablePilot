@@ -152,7 +152,16 @@ class SubscriptionController extends BaseApiController
         }
 
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
+
+        if (!$plan->is_active) {
+            return $this->error('This plan is not currently available.', 422);
+        }
+
         $paymentMethod = $request->payment_method ?? 'sslcommerz';
+
+        if ($paymentMethod === 'bkash') {
+            return $this->error('bKash payments are not available yet.', 422);
+        }
 
         $tranId = 'SUB-' . $tenant->id . '-' . time() . '-' . Str::random(6);
 
@@ -175,17 +184,15 @@ class SubscriptionController extends BaseApiController
             ], 'Manual payment initiated');
         }
 
-        // bKash integration point. Fallback to SSLCommerz if bKash flow is handled elsewhere.
-        if ($paymentMethod === 'bkash') {
-            return $this->success([
-                'tran_id' => $tranId,
-                'payment_url' => rtrim(config('app.url'), '/') . '/api/payment/bkash/callback?tran_id=' . $tranId,
-            ], 'bKash payment initiated');
-        }
-
         $sslCommerz = new SslCommerzService();
 
         if (!$sslCommerz->isEnabled()) {
+            // Free activation is a local/testing convenience only.
+            if (!app()->environment(['local', 'testing'])) {
+                cache()->forget("subscription_payment:{$tranId}");
+                return $this->error('Online payment is not available at this time.', 503);
+            }
+
             $subscription = $this->subscriptionService->createSubscription(
                 tenant: $tenant,
                 plan: $plan,
@@ -263,30 +270,30 @@ class SubscriptionController extends BaseApiController
             return $this->error('Invalid payment metadata.', 422);
         }
 
+        // A tenant's own claim of payment must never activate a subscription.
+        // Record it for a super admin, who activates it via the manual renewal
+        // endpoint once the payment is confirmed.
+        if (Auth::user()?->tenant_id !== $tenant->id) {
+            return $this->error('Invalid payment session.', 403);
+        }
+
         $receiptPath = null;
         if ($request->hasFile('receipt')) {
             $receiptPath = $request->file('receipt')->store('subscription-receipts', 'public');
         }
 
-        $subscription = $this->subscriptionService->createSubscription(
-            tenant: $tenant,
-            plan: $plan,
-            paymentData: [
-                'amount' => $pending['amount'] ?? $plan->price,
-                'payment_method' => 'manual',
-                'payment_ref' => $request->payment_ref,
-                'transaction_id' => $request->tran_id,
-                'notes' => $receiptPath ? "Manual verification receipt: {$receiptPath}" : 'Manual verification submitted',
-            ],
-            isTrial: false,
-            initiatedBy: 'tenant'
-        );
+        AuditLogger::log('subscription_payment_verification_submitted', $tenant, null, [
+            'tran_id' => $request->tran_id,
+            'payment_ref' => $request->payment_ref,
+            'plan_id' => $plan->id,
+            'amount' => $pending['amount'] ?? $plan->price,
+            'receipt' => $receiptPath,
+        ]);
 
-        cache()->forget("subscription_payment:{$request->tran_id}");
-
-        return $this->created([
-            'subscription' => $subscription->load('plan:id,name,slug'),
-        ], 'Payment verified and subscription activated.');
+        return $this->success([
+            'tran_id' => $request->tran_id,
+            'status' => 'pending_review',
+        ], 'Payment details submitted. Your subscription will be activated once an administrator confirms the payment.');
     }
 
     public function paymentCallback(Request $request): JsonResponse

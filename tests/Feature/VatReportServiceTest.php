@@ -24,7 +24,7 @@ beforeEach(function () {
         'is_active'        => true,
     ]);
 
-    Subscription::create([
+    Subscription::factory()->create([
         'tenant_id'  => $this->tenant->id,
         'plan_type'  => 'monthly',
         'amount'     => 999,

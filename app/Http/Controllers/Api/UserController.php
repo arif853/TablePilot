@@ -20,7 +20,7 @@ class UserController extends BaseApiController
     public function index(Request $request): JsonResponse
     {
         $authUser = auth()->user();
-        $query = User::query();
+        $query = User::query()->with('tenant:id,name,slug');
 
         if ($authUser->isSuperAdmin()) {
             // Super admin can filter by tenant_id
@@ -36,6 +36,10 @@ class UserController extends BaseApiController
             $query->where('role', $role);
         }
 
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -43,7 +47,9 @@ class UserController extends BaseApiController
             });
         }
 
-        return $this->paginated($query->latest());
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+
+        return $this->paginated($query->latest(), $perPage);
     }
 
     /**
@@ -141,6 +147,26 @@ class UserController extends BaseApiController
                 'status' => 'sometimes|in:active,inactive',
                 'tenant_id' => 'sometimes|exists:tenants,id',
             ]);
+        }
+
+        if ($user->isSuperAdmin() && array_intersect_key($validated, array_flip(['role', 'tenant_id', 'status']))) {
+            return $this->error('Role, tenant and status of a super admin cannot be changed', 422);
+        }
+
+        // Reactivating a user, or moving an active user to another tenant, takes a seat on that tenant
+        $targetTenantId = $validated['tenant_id'] ?? $user->tenant_id;
+        $becomesActive = ($validated['status'] ?? $user->status) === 'active';
+        $takesNewSeat = $becomesActive && ($user->status !== 'active' || (int) $targetTenantId !== (int) $user->tenant_id);
+
+        if ($takesNewSeat && $targetTenantId && ($tenant = Tenant::find($targetTenantId))) {
+            $activeCount = User::where('tenant_id', $tenant->id)->where('status', 'active')->count();
+
+            if ($activeCount >= $tenant->max_users) {
+                return $this->error(
+                    "User limit reached. {$tenant->name} can have a maximum of {$tenant->max_users} active users.",
+                    422
+                );
+            }
         }
 
         $original = $user->toArray();

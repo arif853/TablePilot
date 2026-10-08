@@ -92,37 +92,59 @@ class SslCommerzService
     }
 
     /**
-     * Validate an IPN/callback from SSLCommerz.
+     * Verify a callback/IPN with the gateway's validation API.
      *
-     * @param array $data The POST data from SSLCommerz callback
-     * @return bool
+     * The request body is never trusted: val_id is always re-checked with
+     * SSLCommerz, and the validated transaction must match the transaction
+     * and amount we expect, so a cheap valid val_id can't be replayed
+     * against a different or more expensive order.
      */
-    public function validatePayment(array $data): bool
+    public function validatePayment(array $data, ?string $expectedTranId = null, string|float|int|null $expectedAmount = null): bool
     {
-        // In sandbox mode, simple validation
-        if ($this->sandbox) {
-            $status = strtoupper((string) ($data['status'] ?? ''));
-            return in_array($status, ['VALID', 'VALIDATED'], true);
+        $valId = (string) ($data['val_id'] ?? '');
+
+        if ($valId === '' || $this->storeId === '' || $this->storePassword === '') {
+            return false;
         }
 
-        // Production: validate via API
         try {
-            $validationId = $data['val_id'] ?? '';
             $response = Http::get("{$this->apiUrl}/validator/api/validationserverAPI.php", [
-                'val_id'       => $validationId,
+                'val_id'       => $valId,
                 'store_id'     => $this->storeId,
                 'store_passwd' => $this->storePassword,
                 'format'       => 'json',
             ]);
 
-            $result = $response->json();
-
-            $status = strtoupper((string) ($result['status'] ?? ''));
-            return in_array($status, ['VALID', 'VALIDATED'], true);
+            $result = $response->json() ?? [];
         } catch (\Exception $e) {
             Log::error('SSLCommerz validation failed', ['error' => $e->getMessage()]);
             return false;
         }
+
+        if (!in_array(strtoupper((string) ($result['status'] ?? '')), ['VALID', 'VALIDATED'], true)) {
+            return false;
+        }
+
+        if ($expectedTranId !== null && ($result['tran_id'] ?? null) !== $expectedTranId) {
+            Log::warning('SSLCommerz validation: tran_id mismatch', ['expected' => $expectedTranId, 'got' => $result['tran_id'] ?? null]);
+            return false;
+        }
+
+        if (!empty($result['currency_type']) && strtoupper($result['currency_type']) !== 'BDT') {
+            return false;
+        }
+
+        if ($expectedAmount !== null) {
+            $paid = number_format((float) ($result['amount'] ?? 0), 2, '.', '');
+            $expected = number_format((float) $expectedAmount, 2, '.', '');
+
+            if (bccomp($paid, $expected, 2) !== 0) {
+                Log::warning('SSLCommerz validation: amount mismatch', ['expected' => $expected, 'got' => $paid]);
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
