@@ -35,6 +35,7 @@ import {
     HiOutlineExclamation,
 } from 'react-icons/hi';
 import { HiArrowsPointingOut, HiArrowsPointingIn } from 'react-icons/hi2';
+import BrandLogo from '../components/ui/BrandLogo';
 
 // Restaurant/Tenant menu items
 const tenantMenuItems = [
@@ -212,15 +213,20 @@ export default function DashboardLayout() {
             {/* Logo */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 shrink-0">
                 <div className="flex items-center overflow-hidden">
-                    {branding.platform_logo ? (
-                        <img src={`/storage/${branding.platform_logo}`} alt={branding.platform_name} className="h-8" />
-                    ) : (
-                        <img src="/assets/images/tablepilot-mark.svg" alt={branding.platform_name} className="h-8 w-8" />
-                    )}
-                    {/* An uploaded platform logo is a full wordmark; only spell the name next to the bare mark */}
-                    {!collapsed && !branding.platform_logo && branding.platform_name && (
-                        <span className="ml-2 text-sm font-bold text-gray-800 truncate hidden lg:inline">{branding.platform_name}</span>
-                    )}
+                    {/* An uploaded platform logo is a full wordmark; otherwise (or if it fails to load) show the mark + name */}
+                    <BrandLogo
+                        src={branding.platform_logo ? `/storage/${branding.platform_logo}` : null}
+                        alt={branding.platform_name}
+                        className="h-8"
+                        fallback={
+                            <>
+                                <img src="/assets/images/tablepilot-mark.svg" alt={branding.platform_name} className="h-8 w-8" />
+                                {!collapsed && branding.platform_name && (
+                                    <span className="ml-2 text-sm font-bold text-gray-800 truncate hidden lg:inline">{branding.platform_name}</span>
+                                )}
+                            </>
+                        }
+                    />
                 </div>
                 {/* Close button for mobile overlay */}
                 <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">

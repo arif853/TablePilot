@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { HiOutlineQrcode, HiOutlineDesktopComputer, HiOutlineSparkles, HiCheck } from 'react-icons/hi';
 import { useBrandingStore } from '../../stores/brandingStore';
+import BrandLogo from '../ui/BrandLogo';
 
 const HIGHLIGHTS = [
     { icon: HiOutlineQrcode, title: 'QR table ordering', text: 'Guests scan, browse the menu and order from their table.' },
@@ -110,11 +111,12 @@ export default function AuthLayout({ title, subtitle, children, footer, step, wi
             <main className="flex-1 flex items-center justify-center px-4 py-10 sm:px-8 bg-gray-50 lg:bg-white">
                 <div className={`w-full ${wide ? 'max-w-2xl' : 'max-w-md'}`}>
                     <Link to="/" className="flex justify-center mb-8" aria-label={`${platformName} home`}>
-                        {logoSrc ? (
-                            <img src={logoSrc} alt={platformName} className="h-11" />
-                        ) : (
-                            <span className="text-3xl font-bold text-brand-700">{platformName}</span>
-                        )}
+                        <BrandLogo
+                            src={logoSrc}
+                            alt={platformName}
+                            className="h-11"
+                            fallback={<span className="text-3xl font-bold text-brand-700">{platformName}</span>}
+                        />
                     </Link>
 
                     {/* Phones don't see the brand panel, so show where they are in sign-up */}

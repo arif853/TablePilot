@@ -1,0 +1,1 @@
+import{r,j as f}from"./index-D81NCEw0.js";function i({src:e,alt:o,className:s,fallback:a=null}){const[n,t]=r.useState(!1);return r.useEffect(()=>t(!1),[e]),!e||n?a:f.jsx("img",{src:e,alt:o,className:s,onError:()=>t(!0)})}export{i as B};

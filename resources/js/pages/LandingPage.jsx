@@ -33,6 +33,7 @@ import {
     HiOutlineSquares2X2,
     HiOutlineCalendarDays,
 } from 'react-icons/hi2';
+import BrandLogo from '../components/ui/BrandLogo';
 
 const PRIMARY_COLOR = '#ED802A';
 
@@ -210,11 +211,12 @@ export default function LandingPage() {
             <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
                     <Link to="/" className="flex items-center gap-2">
-                        {logoSrc ? (
-                            <img src={logoSrc} alt={platformName} className="h-10" />
-                        ) : (
-                            <span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>
-                        )}
+                        <BrandLogo
+                            src={logoSrc}
+                            alt={platformName}
+                            className="h-10"
+                            fallback={<span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>}
+                        />
                     </Link>
                     <div className="flex items-center gap-1 sm:gap-3">
                         <a href="#features" className="hidden md:inline text-sm text-gray-600 hover:text-gray-900 px-3 py-2">Features</a>
@@ -589,15 +591,12 @@ export default function LandingPage() {
                     <div className="grid md:grid-cols-4 gap-10 mb-12">
                         <div className="md:col-span-2">
                             <Link to="/" className="inline-block mb-4">
-                                {logoSrc ? (
-                                    <img
-                                        src={branding.platform_logo_dark ? `/storage/${branding.platform_logo_dark}` : logoSrc}
-                                        alt={platformName}
-                                        className="h-10"
-                                    />
-                                ) : (
-                                    <span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>
-                                )}
+                                <BrandLogo
+                                    src={branding.platform_logo_dark ? `/storage/${branding.platform_logo_dark}` : logoSrc}
+                                    alt={platformName}
+                                    className="h-10"
+                                    fallback={<span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>}
+                                />
                             </Link>
                             <p className="text-gray-500 max-w-md">
                                 The complete restaurant management system — from QR ordering and POS to kitchen displays and analytics.

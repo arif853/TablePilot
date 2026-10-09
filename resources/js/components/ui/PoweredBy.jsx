@@ -1,5 +1,6 @@
 import React from 'react';
 import { useBrandingStore } from '../../stores/brandingStore';
+import BrandLogo from './BrandLogo';
 
 const STORAGE_URL = '/storage/';
 
@@ -19,9 +20,7 @@ export default function PoweredBy({ className = '', variant = 'light' }) {
 
     const content = (
         <span className={`inline-flex items-center gap-1.5 text-xs ${textColor} ${className}`}>
-            {logoSrc && (
-                <img src={logoSrc} alt="" className="h-4 w-auto" />
-            )}
+            <BrandLogo src={logoSrc} alt="" className="h-4 w-auto" />
             <span>{branding.powered_by_text}</span>
         </span>
     );
