@@ -7,6 +7,7 @@ use App\Models\RestaurantTable;
 use App\Models\Traits\BelongsToTenant;
 use App\Models\User;
 use App\Models\Voucher;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -118,9 +119,13 @@ class Order extends Model
         return $query->whereDate('created_at', today());
     }
 
+    /** Inclusive of both days: `to` covers the whole day, not just its midnight. */
     public function scopeDateRange($query, $from, $to)
     {
-        return $query->whereBetween('created_at', [$from, $to]);
+        return $query->whereBetween('created_at', [
+            Carbon::parse($from)->startOfDay(),
+            Carbon::parse($to)->endOfDay(),
+        ]);
     }
 
     public function scopeCompleted($query)

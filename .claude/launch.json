@@ -15,6 +15,12 @@
       "port": 5180
     },
     {
+      "name": "frontend-reports",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "127.0.0.1", "--port", "5181", "--strictPort"],
+      "port": 5181
+    },
+    {
       "name": "backend",
       "url": "http://backend.test"
     }

@@ -240,6 +240,8 @@ $v1Routes = function () {
 
             // Reports
             Route::middleware('module:reports_analytics')->prefix('reports')->group(function () {
+                Route::get('financial', [ReportController::class, 'financialStatement']);
+                Route::get('financial/export', [ReportController::class, 'financialExport']);
                 Route::get('sales', [ReportController::class, 'salesReport']);
                 Route::get('vouchers', [ReportController::class, 'voucherReport']);
                 Route::get('tables', [ReportController::class, 'tablePerformance']);

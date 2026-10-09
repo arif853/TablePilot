@@ -198,6 +198,8 @@ export const kitchenAPI = {
 
 // Reports
 export const reportAPI = {
+    financial: (params) => api.get('/reports/financial', { params }),
+    financialExport: (params) => api.get('/reports/financial/export', { params, responseType: 'blob' }),
     sales: (params) => api.get('/reports/sales', { params }),
     vouchers: (params) => api.get('/reports/vouchers', { params }),
     tables: (params) => api.get('/reports/tables', { params }),
