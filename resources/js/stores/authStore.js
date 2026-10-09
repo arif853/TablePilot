@@ -16,13 +16,38 @@ export const useAuthStore = create(
                 });
             },
 
+            setToken: (token) => set({ token }),
+
             updateUser: (userData) => {
                 set((state) => ({
                     user: { ...state.user, ...userData },
                 }));
             },
 
+            // Super admin "login as" a tenant admin; keeps the admin session so it can be restored
+            startImpersonation: (user, token) => {
+                const { user: adminUser, token: adminToken } = get();
+                localStorage.setItem('admin_original_token', adminToken);
+                localStorage.setItem('admin_original_user', JSON.stringify(adminUser));
+                localStorage.removeItem('module-store');
+                set({ user, token, isAuthenticated: true });
+            },
+
+            stopImpersonation: () => {
+                const adminToken = localStorage.getItem('admin_original_token');
+                const adminUser = JSON.parse(localStorage.getItem('admin_original_user') || 'null');
+                localStorage.removeItem('admin_original_token');
+                localStorage.removeItem('admin_original_user');
+                localStorage.removeItem('module-store');
+                set({ user: adminUser, token: adminToken, isAuthenticated: !!adminToken });
+            },
+
+            isImpersonating: () => !!localStorage.getItem('admin_original_token'),
+
             logout: () => {
+                localStorage.removeItem('module-store');
+                localStorage.removeItem('admin_original_token');
+                localStorage.removeItem('admin_original_user');
                 set({
                     user: null,
                     token: null,

@@ -1,6 +1,8 @@
-# 🍽️ RestaurantSaaS — Multi-Tenant Restaurant Management Platform
+# 🍽️ TablePilot — The AI-Powered Restaurant Platform
 
 A full-featured, multi-tenant **Restaurant Management SaaS Platform** built with **Laravel 12** and **React 18**. Designed for restaurant owners to manage menus, orders, tables, vouchers, kitchen displays, settlements, and more — all behind a subscription-based model managed by a super admin.
+
+Current stable release: **v1.0.0**
 
 Customers scan a **QR code** at their table, browse the menu, place orders, and pay — all from their phone. Staff and kitchen see orders in real-time via **Pusher** broadcasting.
 
@@ -65,7 +67,9 @@ Customers scan a **QR code** at their table, browse the menu, place orders, and 
 - Full settlement history per tenant
 
 ### 📱 Subscription Management
-- Monthly (৳999) and Yearly (৳9999) plans
+- Starter: ৳999/month or ৳9,990/year
+- Professional: ৳2,499/month or ৳24,990/year
+- Enterprise: ৳5,999/month or ৳59,990/year
 - Subscription gating middleware — blocks tenant access when expired
 - Super admin subscription management (create, view, cancel)
 - Auto-expiry checking (daily scheduled job)
@@ -188,7 +192,7 @@ php artisan jwt:secret
 Edit `.env` with your settings:
 
 ```env
-APP_NAME="RestaurantSaaS"
+APP_NAME="TablePilot"
 APP_URL=http://localhost:8000
 
 DB_CONNECTION=mysql

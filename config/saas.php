@@ -7,6 +7,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    // Legacy fallback values. Database table `subscription_plans` is the source of truth.
     'plans' => [
         'monthly' => [
             'name' => 'Monthly',
@@ -21,6 +22,23 @@ return [
     ],
 
     'default_commission_rate' => 5.00,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Free Trial
+    |--------------------------------------------------------------------------
+    | Default number of trial days granted when a new restaurant is onboarded.
+    | Set TRIAL_DAYS=0 to disable trials entirely.
+    */
+    'trial' => [
+        'default_days' => (int) env('TRIAL_DAYS', 14),
+    ],
+
+    'subscription' => [
+        'grace_period_days' => (int) env('SUBSCRIPTION_GRACE_DAYS', 3),
+        'trial_days' => (int) env('TRIAL_DAYS', 14),
+        'expiry_warning_days' => [7, 3, 1],
+    ],
 
     'payment_gateways' => [
         'bkash' => [

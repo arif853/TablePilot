@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Tenant;
+use App\Models\TenantApplication;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,6 +23,14 @@ class User extends Authenticatable implements JWTSubject
         self::ROLE_RESTAURANT_ADMIN,
         self::ROLE_STAFF,
         self::ROLE_KITCHEN,
+    ];
+
+    /**
+     * Mirror the column default so a freshly created model reports its real status
+     * (EnsureUserIsActive checks it on every request).
+     */
+    protected $attributes = [
+        'status' => 'active',
     ];
 
     protected $fillable = [
@@ -68,6 +77,11 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(Tenant::class);
     }
 
+    public function tenantApplication()
+    {
+        return $this->hasOne(TenantApplication::class);
+    }
+
     // Role Helpers
     public function isSuperAdmin(): bool
     {
@@ -97,5 +111,15 @@ class User extends Authenticatable implements JWTSubject
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function isPendingVerification(): bool
+    {
+        return $this->status === 'pending' && $this->email_verified_at === null;
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->status === 'pending' && $this->email_verified_at !== null;
     }
 }

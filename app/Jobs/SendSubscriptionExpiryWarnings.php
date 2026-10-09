@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -24,7 +25,7 @@ class SendSubscriptionExpiryWarnings implements ShouldQueue
     {
         Log::info('Running subscription expiry warning emails...');
 
-        $warningDays = [1, 3, 7];
+        $warningDays = (array) config('saas.subscription.expiry_warning_days', [7, 3, 1]);
         $sentCount = 0;
 
         foreach ($warningDays as $days) {
@@ -51,11 +52,25 @@ class SendSubscriptionExpiryWarnings implements ShouldQueue
 
                 foreach ($adminEmails as $email) {
                     try {
+                        $cacheKey = sprintf(
+                            'subscription-warning:%s:%s:%d:%s',
+                            now()->toDateString(),
+                            $subscription->id,
+                            $days,
+                            md5($email)
+                        );
+
+                        if (Cache::has($cacheKey)) {
+                            continue;
+                        }
+
                         Mail::to($email)->send(new SubscriptionExpiryWarningMail(
                             tenant: $tenant,
                             subscription: $subscription,
                             daysRemaining: $days,
                         ));
+
+                        Cache::put($cacheKey, true, now()->endOfDay());
                         $sentCount++;
                     } catch (\Exception $e) {
                         Log::error("Failed to send expiry warning to {$email} for tenant {$tenant->id}: " . $e->getMessage());

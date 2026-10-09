@@ -8,6 +8,7 @@ use App\Models\RestaurantTable;
 use App\Models\Tenant;
 use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class BillingService
 {
@@ -98,14 +99,42 @@ class BillingService
                 if ($voucher && $voucher->isValid()) {
                     // Calculate subtotal first for voucher
                     $subtotal = collect($calcItems)->sum(fn ($i) => bcmul((string) $i['price'], (string) $i['qty'], 2));
-                    $discount = $voucher->calculateDiscount($subtotal);
-                    $voucherId = $voucher->id;
-                    $voucher->incrementUsage();
+                    $discount = $voucher->calculateDiscount((float) $subtotal);
+
+                    // Only consume a use when it actually discounts (min_purchase met)
+                    // and the usage cap wasn't hit by a concurrent order.
+                    if ($discount > 0 && $voucher->incrementUsage()) {
+                        $voucherId = $voucher->id;
+                    } else {
+                        $discount = 0;
+                    }
                 }
             }
 
             // ── VAT calculation ─────────────────────────────────────────
             $totals = $this->vatService->calculate($calcItems, $tenant, $discount);
+
+            // Validate split payments against grand total.
+            $splitPaymentDetails = null;
+            if (($data['payment_method'] ?? null) === 'split') {
+                $entries = collect($data['split_payments'] ?? []);
+                if ($entries->count() < 2) {
+                    throw new \InvalidArgumentException('At least two split payment entries are required.');
+                }
+
+                $splitTotal = $entries->sum(fn ($row) => (float) ($row['amount'] ?? 0));
+                if (abs($splitTotal - (float) $totals['grand_total']) > 0.01) {
+                    throw new \InvalidArgumentException('Split payment total must match the order grand total.');
+                }
+
+                $splitPaymentDetails = $entries
+                    ->map(fn ($row) => [
+                        'method' => $row['method'],
+                        'amount' => round((float) $row['amount'], 2),
+                    ])
+                    ->values()
+                    ->all();
+            }
 
             // ── Generate atomic invoice number ──────────────────────────
             $invoiceNumber = $this->invoiceService->generate($tenant->id);
@@ -119,14 +148,18 @@ class BillingService
                 'table_id'        => $tableId,
                 'voucher_id'      => $voucherId,
                 'order_number'    => Order::generateOrderNumber($tenant->id),
+                'public_access_token' => Str::random(40),
                 'invoice_number'  => $invoiceNumber,
                 'customer_name'   => $data['customer_name'] ?? null,
                 'customer_phone'  => $data['customer_phone'] ?? null,
+                'delivery_address' => $data['delivery_address'] ?? null,
                 'subtotal'        => $totals['subtotal'],
                 'discount'        => $totals['discount'],
                 'net_amount'      => $totals['net_amount'],
                 'vat_rate'        => $totals['vat_rate'],
                 'vat_amount'      => $totals['vat_amount'],
+                'sd_rate'         => $totals['sd_rate'],
+                'sd_amount'       => $totals['sd_amount'],
                 'tax'             => $totals['vat_amount'], // Keep backward compat with 'tax' column
                 'grand_total'     => $totals['grand_total'],
                 'type'            => $data['type'],
@@ -136,6 +169,7 @@ class BillingService
                 'payment_method'  => $data['payment_method'] ?? 'cash',
                 'payment_status'  => $isPaid ? 'paid' : 'pending',
                 'transaction_id'  => $data['transaction_id'] ?? null,
+                'split_payment_details' => $splitPaymentDetails,
                 'paid_at'         => $isPaid ? now() : null,
                 'source'          => $source,
                 'served_by'       => $servedBy,

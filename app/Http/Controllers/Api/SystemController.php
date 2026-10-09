@@ -13,6 +13,28 @@ use Illuminate\Support\Facades\Storage;
 class SystemController extends BaseApiController
 {
     /**
+     * Public health check endpoint used by load balancers.
+     */
+    public function publicHealth(): JsonResponse
+    {
+        try {
+            DB::connection()->getPdo();
+
+            return response()->json([
+                'status' => 'healthy',
+                'version' => config('app.version'),
+                'timestamp' => now()->toIso8601String(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'unhealthy',
+                'version' => config('app.version'),
+                'timestamp' => now()->toIso8601String(),
+            ], 503);
+        }
+    }
+
+    /**
      * Get system health status.
      */
     public function health(): JsonResponse
@@ -95,6 +117,7 @@ class SystemController extends BaseApiController
             'status' => $hasError ? 'unhealthy' : ($hasWarning ? 'degraded' : 'healthy'),
             'checks' => $checks,
             'timestamp' => now()->toIso8601String(),
+            'app_version' => config('app.version'),
             'php_version' => PHP_VERSION,
             'laravel_version' => app()->version(),
         ]);
@@ -209,6 +232,32 @@ class SystemController extends BaseApiController
     }
 
     /**
+     * Create the public storage symbolic link.
+     */
+    public function storageLink(): JsonResponse
+    {
+        try {
+            $linkPath = public_path('storage');
+
+            if (is_link($linkPath) || file_exists($linkPath)) {
+                return $this->success([
+                    'linked' => false,
+                    'already_exists' => true,
+                ], 'Storage link already exists');
+            }
+
+            Artisan::call('storage:link');
+
+            return $this->success([
+                'linked' => true,
+                'output' => trim(Artisan::output()),
+            ], 'Storage link created successfully');
+        } catch (\Exception $e) {
+            return $this->error('Failed to create storage link: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Get recent log entries.
      */
     public function logs(Request $request): JsonResponse
@@ -271,6 +320,7 @@ class SystemController extends BaseApiController
     public function info(): JsonResponse
     {
         return $this->success([
+            'app_version' => config('app.version'),
             'php_version' => PHP_VERSION,
             'laravel_version' => app()->version(),
             'environment' => app()->environment(),

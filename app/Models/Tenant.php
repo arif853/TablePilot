@@ -8,9 +8,12 @@ use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\RestaurantTable;
 use App\Models\Settlement;
+use App\Models\TenantApplication;
 use App\Models\Subscription;
+use App\Models\TenantModuleOverride;
 use App\Models\User;
 use App\Models\Voucher;
+use App\Models\PosShift;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -41,9 +44,11 @@ class Tenant extends Model
         'vat_registered',
         'vat_number',
         'default_vat_rate',
+        'default_sd_rate',
         'vat_inclusive',
         'is_active',
         'max_users',
+        'trial_ends_at',
     ];
 
     protected function casts(): array
@@ -53,10 +58,12 @@ class Tenant extends Model
             'tax_rate' => 'decimal:2',
             'vat_registered' => 'boolean',
             'default_vat_rate' => 'decimal:2',
+            'default_sd_rate' => 'decimal:2',
             'vat_inclusive' => 'boolean',
             'is_active' => 'boolean',
             'max_users' => 'integer',
             'social_links' => 'array',
+            'trial_ends_at' => 'datetime',
         ];
     }
 
@@ -101,9 +108,38 @@ class Tenant extends Model
         return $this->hasMany(Settlement::class);
     }
 
+    /**
+     * Get all module overrides for this tenant.
+     */
+    public function moduleOverrides()
+    {
+        return $this->hasMany(TenantModuleOverride::class);
+    }
+
+    /**
+     * Get all granted module overrides for this tenant.
+     */
+    public function grantedModules()
+    {
+        return $this->moduleOverrides()->where('type', 'grant');
+    }
+
+    /**
+     * Get all revoked module overrides for this tenant.
+     */
+    public function revokedModules()
+    {
+        return $this->moduleOverrides()->where('type', 'revoke');
+    }
+
     public function invoiceCounter()
     {
         return $this->hasOne(InvoiceCounter::class);
+    }
+
+    public function shifts()
+    {
+        return $this->hasMany(PosShift::class);
     }
 
     public function activeSubscription()
@@ -123,6 +159,35 @@ class Tenant extends Model
     public function isSubscriptionExpired(): bool
     {
         return !$this->hasActiveSubscription();
+    }
+
+    /** True while the free-trial window is still open (no paid sub required). */
+    public function isOnTrial(): bool
+    {
+        return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
+    }
+
+    /** Days left in the trial (0 if expired or no trial). */
+    public function trialDaysRemaining(): int
+    {
+        if (!$this->trial_ends_at || $this->trial_ends_at->isPast()) {
+            return 0;
+        }
+        return (int) now()->diffInDays($this->trial_ends_at, false);
+    }
+
+    /** True when a trial was granted but has since expired with no paid subscription. */
+    public function trialExpired(): bool
+    {
+        return $this->trial_ends_at !== null
+            && $this->trial_ends_at->isPast()
+            && !$this->hasActiveSubscription();
+    }
+
+    /** Tenant may use the platform if they have a paid subscription OR an active trial. */
+    public function hasAccessRights(): bool
+    {
+        return $this->hasActiveSubscription() || $this->isOnTrial();
     }
 
     public function isWifiEnforced(): bool

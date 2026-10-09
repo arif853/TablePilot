@@ -33,6 +33,7 @@ import {
     HiOutlineSquares2X2,
     HiOutlineCalendarDays,
 } from 'react-icons/hi2';
+import BrandLogo from '../components/ui/BrandLogo';
 
 const PRIMARY_COLOR = '#ED802A';
 
@@ -161,7 +162,7 @@ const testimonials = [
 export default function LandingPage() {
     const { branding } = useBrandingStore();
     const logoSrc = branding.platform_logo ? `/storage/${branding.platform_logo}` : null;
-    const platformName = branding.platform_name || 'Infyrasoft';
+    const platformName = branding.platform_name || 'TablePilot';
 
     const [form, setForm] = useState({ name: '', email: '', phone: '', restaurant_name: '', message: '' });
     const [submitting, setSubmitting] = useState(false);
@@ -210,11 +211,12 @@ export default function LandingPage() {
             <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
                     <Link to="/" className="flex items-center gap-2">
-                        {logoSrc ? (
-                            <img src={logoSrc} alt={platformName} className="h-10" />
-                        ) : (
-                            <span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>
-                        )}
+                        <BrandLogo
+                            src={logoSrc}
+                            alt={platformName}
+                            className="h-10"
+                            fallback={<span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>}
+                        />
                     </Link>
                     <div className="flex items-center gap-1 sm:gap-3">
                         <a href="#features" className="hidden md:inline text-sm text-gray-600 hover:text-gray-900 px-3 py-2">Features</a>
@@ -237,7 +239,7 @@ export default function LandingPage() {
                     <div className="text-center max-w-4xl mx-auto">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6" style={{ backgroundColor: `${PRIMARY_COLOR}15`, color: PRIMARY_COLOR }}>
                             <HiOutlineSparkles className="w-4 h-4" />
-                            Smart Restaurant Management System
+                            The AI-Powered Restaurant Platform
                         </div>
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight">
                             Run Your Restaurant <br className="hidden sm:block" />
@@ -394,8 +396,12 @@ export default function LandingPage() {
                         <p className="text-sm font-semibold tracking-wider uppercase mb-3" style={{ color: PRIMARY_COLOR }}>Pricing</p>
                         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Simple, Transparent Pricing</h2>
                         <p className="mt-4 text-gray-500 text-lg">No hidden fees. Pick a plan, start today, upgrade anytime.</p>
+                        {plans?.some(p => p.trial_days > 0) && (
+                            <p className="mt-2 text-sm font-medium" style={{ color: PRIMARY_COLOR }}>
+                                Free trial available — no credit card required
+                            </p>
+                        )}
                     </div>
-
                     <div className={`grid gap-8 max-w-5xl mx-auto ${plans?.length === 1 ? 'md:grid-cols-1 max-w-md' : plans?.length === 2 ? 'md:grid-cols-2 max-w-3xl' : 'md:grid-cols-3'}`}>
                         {plans?.map((plan, i) => {
                             const isMiddle = plans.length >= 3 && i === Math.floor(plans.length / 2);
@@ -419,6 +425,16 @@ export default function LandingPage() {
                                     <div className="mb-6">
                                         <span className="text-4xl font-bold text-gray-900">৳{formatPrice(plan.price)}</span>
                                         <span className="text-gray-500">{getDurationLabel(plan.duration_days)}</span>
+                                        {plan.annual_price && (
+                                            <p className="text-sm text-gray-500 mt-2">
+                                                Annual billing: ৳{formatPrice(plan.annual_price)}/year
+                                            </p>
+                                        )}
+                                        {plan.trial_days > 0 && (
+                                            <p className="text-sm font-semibold mt-2" style={{ color: PRIMARY_COLOR }}>
+                                                {plan.trial_days}-day free trial
+                                            </p>
+                                        )}
                                     </div>
                                     {features.length > 0 && (
                                         <ul className="space-y-3 mb-8">
@@ -431,11 +447,11 @@ export default function LandingPage() {
                                         </ul>
                                     )}
                                     <a
-                                        href="#contact"
+                                        href="/register"
                                         className={`block text-center py-3 rounded-xl font-semibold transition-all ${isMiddle ? 'text-white hover:opacity-90' : 'text-gray-700 border border-gray-200 hover:border-gray-300'}`}
                                         style={{ backgroundColor: isMiddle ? PRIMARY_COLOR : 'white' }}
                                     >
-                                        Get Started
+                                        {plan.trial_days > 0 ? `Start Free ${plan.trial_days}-Day Trial` : 'Get Started'}
                                     </a>
                                 </div>
                             );
@@ -575,15 +591,12 @@ export default function LandingPage() {
                     <div className="grid md:grid-cols-4 gap-10 mb-12">
                         <div className="md:col-span-2">
                             <Link to="/" className="inline-block mb-4">
-                                {logoSrc ? (
-                                    <img
-                                        src={branding.platform_logo_dark ? `/storage/${branding.platform_logo_dark}` : logoSrc}
-                                        alt={platformName}
-                                        className="h-10"
-                                    />
-                                ) : (
-                                    <span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>
-                                )}
+                                <BrandLogo
+                                    src={branding.platform_logo_dark ? `/storage/${branding.platform_logo_dark}` : logoSrc}
+                                    alt={platformName}
+                                    className="h-10"
+                                    fallback={<span className="text-2xl font-bold" style={{ color: PRIMARY_COLOR }}>{platformName}</span>}
+                                />
                             </Link>
                             <p className="text-gray-500 max-w-md">
                                 The complete restaurant management system — from QR ordering and POS to kitchen displays and analytics.

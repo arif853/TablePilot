@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'wifi.validate' => \App\Http\Middleware\ValidateWifiIp::class,
             'role' => \App\Http\Middleware\CheckRole::class,
             'json' => \App\Http\Middleware\ForceJsonResponse::class,
+            'module' => \App\Http\Middleware\CheckModuleAccess::class,
+            'active' => \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
 
         $middleware->api(prepend: [

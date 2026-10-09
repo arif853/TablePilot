@@ -7,6 +7,7 @@ use App\Models\AIConversation;
 use App\Models\AIUsageLog;
 use App\Services\AI\AnalyticsAssistantService;
 use App\Services\AI\GeminiService;
+use App\Services\ModulePermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,11 +16,13 @@ class AIAnalyticsController extends BaseApiController
 {
     protected AnalyticsAssistantService $analyticsService;
     protected GeminiService $geminiService;
+    protected ModulePermissionService $modulePermissionService;
 
-    public function __construct(AnalyticsAssistantService $analyticsService, GeminiService $geminiService)
+    public function __construct(AnalyticsAssistantService $analyticsService, GeminiService $geminiService, ModulePermissionService $modulePermissionService)
     {
         $this->analyticsService = $analyticsService;
         $this->geminiService = $geminiService;
+        $this->modulePermissionService = $modulePermissionService;
     }
 
     /**
@@ -44,6 +47,10 @@ class AIAnalyticsController extends BaseApiController
         // Check if AI is enabled
         if (!config('ai.features.analytics_assistant')) {
             return $this->error('Analytics assistant is not enabled', 403);
+        }
+
+        if (!$this->modulePermissionService->tenantHasModule($user->tenant, 'ai_analytics_assistant')) {
+            return $this->error('Your subscription plan does not include this feature.', 403);
         }
 
         // Get or create conversation
@@ -94,6 +101,10 @@ class AIAnalyticsController extends BaseApiController
 
         if (!config('ai.features.analytics_assistant')) {
             return $this->error('Analytics assistant is not enabled', 403);
+        }
+
+        if (!$this->modulePermissionService->tenantHasModule($user->tenant, 'ai_analytics_assistant')) {
+            return $this->error('Your subscription plan does not include this feature.', 403);
         }
 
         $result = $this->analyticsService

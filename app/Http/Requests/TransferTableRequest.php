@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class TransferTableRequest extends FormRequest
 {
@@ -14,8 +15,8 @@ class TransferTableRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from_table_id' => 'required|exists:restaurant_tables,id',
-            'to_table_id' => 'required|exists:restaurant_tables,id|different:from_table_id',
+            'from_table_id' => ['required', Rule::exists('restaurant_tables', 'id')->where('tenant_id', $this->user()?->tenant_id)],
+            'to_table_id' => ['required', 'different:from_table_id', Rule::exists('restaurant_tables', 'id')->where('tenant_id', $this->user()?->tenant_id)],
         ];
     }
 

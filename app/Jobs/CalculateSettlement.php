@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Settlement;
 use App\Models\Tenant;
 use Illuminate\Bus\Queueable;
+use Illuminate\Support\Carbon;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -24,8 +25,9 @@ class CalculateSettlement implements ShouldQueue
 
     public function handle(): void
     {
-        $periodStart = $this->periodStart ?? now()->startOfMonth()->toDateString();
-        $periodEnd = $this->periodEnd ?? now()->endOfMonth()->toDateString();
+        // Scheduled on the 1st, so default to the month that just ended.
+        $periodStart = $this->periodStart ?? now()->subMonthNoOverflow()->startOfMonth()->toDateString();
+        $periodEnd = $this->periodEnd ?? now()->subMonthNoOverflow()->endOfMonth()->toDateString();
 
         $query = Tenant::where('payment_mode', 'platform')->where('is_active', true);
 
@@ -39,13 +41,16 @@ class CalculateSettlement implements ShouldQueue
             $totalSold = Order::withoutGlobalScopes()
                 ->where('tenant_id', $tenant->id)
                 ->where('status', 'completed')
-                ->whereBetween('created_at', [$periodStart, $periodEnd])
+                ->whereBetween('created_at', [
+                    Carbon::parse($periodStart)->startOfDay(),
+                    Carbon::parse($periodEnd)->endOfDay(),
+                ])
                 ->sum('grand_total');
 
             if ($totalSold <= 0) continue;
 
             $commissionRate = $tenant->commission_rate;
-            $commissionAmount = round($totalSold * ($commissionRate / 100), 2);
+            $commissionAmount = (float) bcdiv(bcmul((string) $totalSold, (string) $commissionRate, 4), '100', 2);
 
             // Check if settlement already exists for this period
             $settlement = Settlement::withoutGlobalScopes()

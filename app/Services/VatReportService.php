@@ -29,6 +29,7 @@ class VatReportService
             DB::raw('COALESCE(SUM(discount), 0) as total_discount'),
             DB::raw('COALESCE(SUM(net_amount), 0) as total_net_amount'),
             DB::raw('COALESCE(SUM(vat_amount), 0) as total_vat_collected'),
+            DB::raw('COALESCE(SUM(sd_amount), 0) as total_sd_collected'),
             DB::raw('COALESCE(SUM(grand_total), 0) as total_sales'),
         ])->first();
 
@@ -45,6 +46,7 @@ class VatReportService
             'type',
             DB::raw('COUNT(*) as order_count'),
             DB::raw('COALESCE(SUM(grand_total), 0) as total_amount'),
+            DB::raw('COALESCE(SUM(vat_amount), 0) as vat_amount'),
         ])
             ->groupBy('type')
             ->get();
@@ -54,11 +56,12 @@ class VatReportService
             'tenant_id'  => $tenantId,
             'summary'    => [
                 'order_count'        => (int) $summary->order_count,
-                'total_subtotal'     => $summary->total_subtotal,
-                'total_discount'     => $summary->total_discount,
-                'total_net_amount'   => $summary->total_net_amount,
-                'total_vat_collected' => $summary->total_vat_collected,
-                'total_sales'        => $summary->total_sales,
+                'total_subtotal'     => number_format((float) $summary->total_subtotal, 2, '.', ''),
+                'total_discount'     => number_format((float) $summary->total_discount, 2, '.', ''),
+                'total_net_amount'   => number_format((float) $summary->total_net_amount, 2, '.', ''),
+                'total_vat_collected' => number_format((float) $summary->total_vat_collected, 2, '.', ''),
+                'total_sd_collected' => number_format((float) $summary->total_sd_collected, 2, '.', ''),
+                'total_sales'        => number_format((float) $summary->total_sales, 2, '.', ''),
             ],
             'by_payment_method' => $byPaymentMethod,
             'by_order_type'     => $byOrderType,
@@ -88,6 +91,7 @@ class VatReportService
             DB::raw('COALESCE(SUM(discount), 0) as total_discount'),
             DB::raw('COALESCE(SUM(net_amount), 0) as total_taxable_sales'),
             DB::raw('COALESCE(SUM(vat_amount), 0) as total_vat_collected'),
+            DB::raw('COALESCE(SUM(sd_amount), 0) as total_sd_collected'),
             DB::raw('COALESCE(SUM(grand_total), 0) as total_sales'),
         ])->first();
 
@@ -110,6 +114,7 @@ class VatReportService
             DB::raw('COUNT(*) as invoice_count'),
             DB::raw('COALESCE(SUM(net_amount), 0) as taxable_sales'),
             DB::raw('COALESCE(SUM(vat_amount), 0) as vat_collected'),
+            DB::raw('COALESCE(SUM(grand_total), 0) as total_sales'),
         ])
             ->groupBy('vat_rate')
             ->get();
@@ -119,11 +124,12 @@ class VatReportService
             'tenant_id' => $tenantId,
             'summary'   => [
                 'total_invoices'      => (int) $summary->total_invoices,
-                'total_subtotal'      => $summary->total_subtotal,
-                'total_discount'      => $summary->total_discount,
-                'total_taxable_sales' => $summary->total_taxable_sales,
-                'total_vat_collected' => $summary->total_vat_collected,
-                'total_sales'         => $summary->total_sales,
+                'total_subtotal'      => number_format((float) $summary->total_subtotal, 2, '.', ''),
+                'total_discount'      => number_format((float) $summary->total_discount, 2, '.', ''),
+                'total_taxable_sales' => number_format((float) $summary->total_taxable_sales, 2, '.', ''),
+                'total_vat_collected' => number_format((float) $summary->total_vat_collected, 2, '.', ''),
+                'total_sd_collected'  => number_format((float) $summary->total_sd_collected, 2, '.', ''),
+                'total_sales'         => number_format((float) $summary->total_sales, 2, '.', ''),
             ],
             'daily_breakdown'  => $dailyBreakdown,
             'by_vat_rate'      => $byVatRate,

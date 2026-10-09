@@ -2,17 +2,17 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
     plugins: [
         react(),
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'robots.txt'],
             manifest: {
-                name: 'RestaurantSaaS',
-                short_name: 'RestSaaS',
-                description: 'Multi-Tenant Restaurant Management Platform',
-                theme_color: '#3B82F6',
+                name: 'TablePilot',
+                short_name: 'TablePilot',
+                description: 'The AI-powered restaurant platform',
+                theme_color: '#ED802A',
                 background_color: '#ffffff',
                 display: 'standalone',
                 start_url: '/',
@@ -32,7 +32,7 @@ export default defineConfig({
         }),
     ],
     root: 'resources/js',
-    base: '/build/',
+    base: '/build/' ,
     build: {
         outDir: '../../public/build',
         emptyOutDir: true,
@@ -43,17 +43,22 @@ export default defineConfig({
         port: 3000,
         proxy: {
             '/api': {
-                target: 'http://127.0.0.1:8000',
+                target: 'http://backend.test',
+                changeOrigin: true,
+            },
+            // Static images live in Laravel's public/ (Vite's root is resources/js)
+            '/assets': {
+                target: 'http://backend.test',
                 changeOrigin: true,
             },
             '/storage': {
-                target: 'http://127.0.0.1:8000',
+                target: 'http://backend.test',
                 changeOrigin: true,
             },
             '/broadcasting': {
-                target: 'http://127.0.0.1:8000',
+                target: 'http://backend.test',
                 changeOrigin: true,
             },
         },
     },
-});
+}));

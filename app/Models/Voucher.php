@@ -82,8 +82,23 @@ class Voucher extends Model
         return min($this->discount_value, $subtotal);
     }
 
-    public function incrementUsage(): void
+    /**
+     * Atomically consume one use. Returns false if the usage cap was
+     * reached by a concurrent order.
+     */
+    public function incrementUsage(): bool
     {
-        $this->increment('used_count');
+        return static::withoutGlobalScopes()
+            ->where('id', $this->id)
+            ->where(fn ($q) => $q->whereNull('max_uses')->orWhereColumn('used_count', '<', 'max_uses'))
+            ->increment('used_count') > 0;
+    }
+
+    public function releaseUsage(): void
+    {
+        static::withoutGlobalScopes()
+            ->where('id', $this->id)
+            ->where('used_count', '>', 0)
+            ->decrement('used_count');
     }
 }

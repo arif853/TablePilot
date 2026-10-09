@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Events\OrderStatusUpdated;
 use App\Models\Order;
-use App\Models\RestaurantTable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,49 +21,40 @@ class AutoCancelStaleOrders implements ShouldQueue
 
         Log::info("Running auto-cancel for orders older than {$autoCancelMinutes} minutes in 'placed' status...");
 
-        $staleOrders = Order::withoutGlobalScopes()
-            ->where('status', 'placed')
-            ->where('created_at', '<', now()->subMinutes($autoCancelMinutes))
-            ->get();
-
         $cancelledCount = 0;
 
-        foreach ($staleOrders as $order) {
-            $order->update([
-                'status' => 'cancelled',
-                'notes' => trim(($order->notes ?? '') . "\n[Auto-cancelled: No confirmation after {$autoCancelMinutes} minutes]"),
-            ]);
+        Order::withoutGlobalScopes()
+            ->where('status', 'placed')
+            ->where('created_at', '<', now()->subMinutes($autoCancelMinutes))
+            ->chunkById(100, function ($orders) use ($autoCancelMinutes, &$cancelledCount) {
+                foreach ($orders as $order) {
+                    // Atomic guard: skip if staff advanced/cancelled it since the query ran
+                    $claimed = Order::withoutGlobalScopes()
+                        ->where('id', $order->id)
+                        ->where('status', 'placed')
+                        ->update([
+                            'status' => 'cancelled',
+                            'notes' => trim(($order->notes ?? '') . "
+[Auto-cancelled: No confirmation after {$autoCancelMinutes} minutes]"),
+                        ]);
 
-            // Free table if dine-in
-            if ($order->table_id) {
-                $hasOtherActiveOrders = Order::withoutGlobalScopes()
-                    ->where('table_id', $order->table_id)
-                    ->where('id', '!=', $order->id)
-                    ->whereNotIn('status', ['completed', 'cancelled'])
-                    ->exists();
+                    if (!$claimed) {
+                        continue;
+                    }
 
-                if (!$hasOtherActiveOrders) {
-                    RestaurantTable::where('id', $order->table_id)
-                        ->update(['status' => 'available']);
+                    $order->refresh();
+                    $order->releaseResources(restoreVoucher: true);
+
+                    try {
+                        broadcast(new OrderStatusUpdated($order));
+                    } catch (\Exception $e) {
+                        Log::warning("Failed to broadcast auto-cancel for order {$order->order_number}: " . $e->getMessage());
+                    }
+
+                    $cancelledCount++;
+                    Log::info("Auto-cancelled order {$order->order_number} (Tenant: {$order->tenant_id})");
                 }
-            }
-
-            // Restore voucher usage if applicable
-            if ($order->voucher_id && $order->voucher) {
-                $order->voucher->decrement('used_count');
-            }
-
-            // Broadcast the cancellation
-            try {
-                broadcast(new OrderStatusUpdated($order->fresh()));
-            } catch (\Exception $e) {
-                Log::warning("Failed to broadcast auto-cancel for order {$order->order_number}: " . $e->getMessage());
-            }
-
-            $cancelledCount++;
-
-            Log::info("Auto-cancelled order {$order->order_number} (Tenant: {$order->tenant_id})");
-        }
+            });
 
         Log::info("Auto-cancel complete. Cancelled {$cancelledCount} stale orders.");
     }

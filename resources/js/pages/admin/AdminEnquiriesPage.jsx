@@ -89,7 +89,7 @@ export default function AdminEnquiriesPage() {
                     <p className="text-sm text-gray-500">Total Enquiries</p>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p className="text-2xl font-bold text-blue-600">
+                    <p className="text-2xl font-bold text-brand-700">
                         {enquiries.filter(e => e.status === 'new').length}
                     </p>
                     <p className="text-sm text-gray-500">New</p>
@@ -209,7 +209,7 @@ export default function AdminEnquiriesPage() {
                                                     setSelectedEnquiry(enquiry);
                                                     setShowReplyModal(true);
                                                 }}
-                                                className="text-gray-400 hover:text-blue-600"
+                                                className="text-gray-400 hover:text-brand-700"
                                                 title="Reply"
                                             >
                                                 <HiOutlineReply className="w-4 h-4" />

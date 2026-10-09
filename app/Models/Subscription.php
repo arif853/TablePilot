@@ -14,13 +14,16 @@ class Subscription extends Model
         'tenant_id',
         'plan_id',
         'plan_type',
+        'is_trial',
         'amount',
         'payment_method',
         'payment_ref',
         'transaction_id',
         'starts_at',
         'expires_at',
+        'grace_ends_at',
         'status',
+        'initiated_by',
         'notes',
     ];
 
@@ -28,8 +31,10 @@ class Subscription extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'is_trial' => 'boolean',
             'starts_at' => 'date',
             'expires_at' => 'date',
+            'grace_ends_at' => 'datetime',
         ];
     }
 
@@ -48,6 +53,12 @@ class Subscription extends Model
             ->where('expires_at', '>=', today());
     }
 
+    public function scopeGrace($query)
+    {
+        return $query->where('status', 'grace')
+            ->where('grace_ends_at', '>=', now());
+    }
+
     public function scopeExpired($query)
     {
         return $query->where('status', 'active')
@@ -58,6 +69,13 @@ class Subscription extends Model
     public function isActive(): bool
     {
         return $this->status === 'active' && $this->expires_at->gte(today());
+    }
+
+    public function isInGrace(): bool
+    {
+        return $this->status === 'grace'
+            && $this->grace_ends_at !== null
+            && $this->grace_ends_at->gte(now());
     }
 
     public function isExpired(): bool
@@ -73,5 +91,10 @@ class Subscription extends Model
     public function markExpired(): void
     {
         $this->update(['status' => 'expired']);
+    }
+
+    public function markGrace(): void
+    {
+        $this->update(['status' => 'grace']);
     }
 }

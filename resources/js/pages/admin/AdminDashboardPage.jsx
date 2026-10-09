@@ -181,7 +181,7 @@ export default function AdminDashboardPage() {
                                     <div>
                                         <Link
                                             to={`/dashboard/admin/tenants/${tenant.id}`}
-                                            className="font-medium text-gray-900 hover:text-blue-600"
+                                            className="font-medium text-gray-900 hover:text-brand-700"
                                         >
                                             {tenant.name}
                                         </Link>
@@ -211,7 +211,7 @@ export default function AdminDashboardPage() {
                                     </div>
                                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-blue-500 rounded-full"
+                                            className="h-full bg-brand-500 rounded-full"
                                             style={{ width: `${percentage}%` }}
                                         />
                                     </div>
@@ -228,7 +228,7 @@ export default function AdminDashboardPage() {
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold text-gray-900">Recent Tenants</h3>
-                        <Link to="/dashboard/admin/tenants" className="text-sm text-blue-600 hover:underline">
+                        <Link to="/dashboard/admin/tenants" className="text-sm text-brand-700 hover:underline">
                             View all →
                         </Link>
                     </div>
@@ -238,7 +238,7 @@ export default function AdminDashboardPage() {
                                 <div>
                                     <Link
                                         to={`/dashboard/admin/tenants/${tenant.id}`}
-                                        className="font-medium text-gray-900 hover:text-blue-600"
+                                        className="font-medium text-gray-900 hover:text-brand-700"
                                     >
                                         {tenant.name}
                                     </Link>
@@ -260,7 +260,7 @@ export default function AdminDashboardPage() {
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-semibold text-gray-900">Recent Subscriptions</h3>
-                        <Link to="/dashboard/admin/subscriptions" className="text-sm text-blue-600 hover:underline">
+                        <Link to="/dashboard/admin/subscriptions" className="text-sm text-brand-700 hover:underline">
                             View all →
                         </Link>
                     </div>

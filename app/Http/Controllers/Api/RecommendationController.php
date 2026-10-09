@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Services\AI\RecommendationService;
+use App\Services\ModulePermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RecommendationController extends Controller
 {
     protected RecommendationService $recommendations;
+    protected ModulePermissionService $modulePermissionService;
 
-    public function __construct(RecommendationService $recommendations)
+    public function __construct(RecommendationService $recommendations, ModulePermissionService $modulePermissionService)
     {
         $this->recommendations = $recommendations;
+        $this->modulePermissionService = $modulePermissionService;
     }
 
     /**
@@ -29,6 +32,13 @@ class RecommendationController extends Controller
                 'success' => false,
                 'error' => 'Restaurant not found',
             ], 404);
+        }
+
+        if (!$this->modulePermissionService->tenantHasModule($tenantModel, 'ai_recommendations')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This feature is not available for this restaurant.',
+            ], 403);
         }
 
         $cartItems = $request->input('cart', []);
@@ -53,6 +63,13 @@ class RecommendationController extends Controller
                 'success' => false,
                 'error' => 'Restaurant not found',
             ], 404);
+        }
+
+        if (!$this->modulePermissionService->tenantHasModule($tenantModel, 'ai_recommendations')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This feature is not available for this restaurant.',
+            ], 403);
         }
 
         $limit = min($request->input('limit', 3), 6);

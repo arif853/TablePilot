@@ -2,89 +2,45 @@
 
 namespace App\Jobs;
 
-use App\Mail\SubscriptionExpiredMail;
 use App\Models\Subscription;
-use App\Models\Tenant;
-use App\Models\User;
+use App\Services\SubscriptionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class CheckSubscriptionExpiry implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function handle(): void
+    public function handle(SubscriptionService $subscriptionService): void
     {
         Log::info('Running subscription expiry check...');
 
-        // Find expired active subscriptions (use today() for date columns)
-        $expired = Subscription::withoutGlobalScopes()
-            ->with('tenant')
+        // Step 1: Active subscriptions that reached expiry enter grace period.
+        $toGrace = Subscription::withoutGlobalScopes()
             ->where('status', 'active')
-            ->where('expires_at', '<', today())
+            ->whereDate('expires_at', '<=', today())
             ->get();
 
-        foreach ($expired as $subscription) {
-            $subscription->markExpired();
-
-            // Check if tenant has any other active subscription
-            $hasActive = Subscription::withoutGlobalScopes()
-                ->where('tenant_id', $subscription->tenant_id)
-                ->where('id', '!=', $subscription->id)
-                ->where('status', 'active')
-                ->where('expires_at', '>=', today())
-                ->exists();
-
-            if (!$hasActive) {
-                // Deactivate tenant
-                Tenant::where('id', $subscription->tenant_id)
-                    ->update(['is_active' => false]);
-
-                Log::info("Tenant {$subscription->tenant_id} deactivated due to expired subscription.");
-
-                // Send expiry notification email
-                $this->sendExpiryEmail($subscription);
-            }
+        foreach ($toGrace as $subscription) {
+            $subscriptionService->applyGracePeriod($subscription);
         }
 
-        Log::info("Processed {$expired->count()} expired subscriptions.");
-    }
+        // Step 2: Grace subscriptions that passed grace_ends_at are hard-expired.
+        $toExpire = Subscription::withoutGlobalScopes()
+            ->where('status', 'grace')
+            ->whereNotNull('grace_ends_at')
+            ->whereDate('grace_ends_at', '<=', today())
+            ->get();
 
-    /**
-     * Send subscription expired email to tenant admins.
-     */
-    protected function sendExpiryEmail(Subscription $subscription): void
-    {
-        $tenant = $subscription->tenant;
-
-        if (!$tenant) {
-            return;
+        foreach ($toExpire as $subscription) {
+            $subscriptionService->hardExpire($subscription);
         }
 
-        $adminEmails = User::where('tenant_id', $tenant->id)
-            ->where('role', User::ROLE_RESTAURANT_ADMIN)
-            ->where('status', 'active')
-            ->pluck('email')
-            ->toArray();
-
-        if (empty($adminEmails)) {
-            $adminEmails = [$tenant->email];
-        }
-
-        foreach ($adminEmails as $email) {
-            try {
-                Mail::to($email)->send(new SubscriptionExpiredMail(
-                    tenant: $tenant,
-                    subscription: $subscription,
-                ));
-            } catch (\Exception $e) {
-                Log::error("Failed to send expiry email to {$email} for tenant {$tenant->id}: " . $e->getMessage());
-            }
-        }
+        Log::info("Processed {$toGrace->count()} subscriptions into grace period.");
+        Log::info("Processed {$toExpire->count()} subscriptions into hard expiry.");
     }
 }

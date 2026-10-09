@@ -1,60 +1,74 @@
 <?php
 
+/**
+ * Password Reset Tests (API)
+ *
+ * Tests the JWT-compatible password reset flow via PasswordResetController.
+ */
+
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
-test('reset password link screen can be rendered', function () {
-    $response = $this->get('/forgot-password');
+test('forgot password endpoint accepts email', function () {
+    User::factory()->create(['email' => 'test@test.com']);
 
-    $response->assertStatus(200);
+    $response = $this->postJson('/api/auth/forgot-password', [
+        'email' => 'test@test.com',
+    ]);
+
+    // Always returns 200 to prevent email enumeration
+    $response->assertOk()
+        ->assertJsonPath('success', true);
 });
 
-test('reset password link can be requested', function () {
-    Notification::fake();
+test('forgot password does not reveal if email exists', function () {
+    $response = $this->postJson('/api/auth/forgot-password', [
+        'email' => 'nonexistent@test.com',
+    ]);
 
-    $user = User::factory()->create();
-
-    $this->post('/forgot-password', ['email' => $user->email]);
-
-    Notification::assertSentTo($user, ResetPassword::class);
+    // Same response whether email exists or not
+    $response->assertOk()
+        ->assertJsonPath('success', true);
 });
 
-test('reset password screen can be rendered', function () {
-    Notification::fake();
+test('forgot password validates email field', function () {
+    $response = $this->postJson('/api/auth/forgot-password', []);
 
-    $user = User::factory()->create();
+    $response->assertStatus(422);
+});
 
-    $this->post('/forgot-password', ['email' => $user->email]);
+test('the emailed reset link opens the reset page and resets the password', function () {
+    \Illuminate\Support\Facades\Mail::fake();
+    $user = User::factory()->create(['email' => 'reset-me@example.com', 'password' => 'old-password-1']);
 
-    Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-        $response = $this->get('/reset-password/'.$notification->token);
+    $this->postJson('/api/auth/forgot-password', ['email' => $user->email])->assertOk();
 
-        $response->assertStatus(200);
-
+    $resetUrl = null;
+    \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\PasswordResetMail::class, function ($mail) use (&$resetUrl) {
+        $resetUrl = $mail->resetUrl;
         return true;
     });
-});
 
-test('password can be reset with valid token', function () {
-    Notification::fake();
+    // The frontend's /reset-password page reads token and email from the query string
+    expect(parse_url($resetUrl, PHP_URL_PATH))->toBe('/reset-password');
+    parse_str(parse_url($resetUrl, PHP_URL_QUERY), $query);
+    expect($query['email'])->toBe($user->email)->and($query['token'])->not->toBeEmpty();
 
-    $user = User::factory()->create();
+    $this->postJson('/api/auth/reset-password', [
+        'email' => $query['email'],
+        'token' => $query['token'],
+        'password' => 'new-password-1',
+        'password_confirmation' => 'new-password-1',
+    ])->assertOk();
 
-    $this->post('/forgot-password', ['email' => $user->email]);
+    expect(Hash::check('new-password-1', $user->fresh()->password))->toBeTrue();
 
-    Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
-        $response = $this->post('/reset-password', [
-            'token' => $notification->token,
-            'email' => $user->email,
-            'password' => 'password',
-            'password_confirmation' => 'password',
-        ]);
-
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('login'));
-
-        return true;
-    });
+    // A reset link works once
+    $this->postJson('/api/auth/reset-password', [
+        'email' => $query['email'],
+        'token' => $query['token'],
+        'password' => 'another-password-1',
+        'password_confirmation' => 'another-password-1',
+    ])->assertUnprocessable();
 });

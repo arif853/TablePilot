@@ -13,9 +13,10 @@ jobs:
           fetch-depth: 2
       - name: FTP-Deploy-Action
         uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        # Credentials live in GitHub: Settings -> Secrets and variables -> Actions
         with:
-          server: ftp.arifhossen.site
-          username: "infyra@infyrasoft.arifhossen.site"
-          password: "eK5td3MceESkazzn"
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
 
 

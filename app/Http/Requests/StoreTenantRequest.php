@@ -29,10 +29,13 @@ class StoreTenantRequest extends FormRequest
             'admin_email' => 'required|email|unique:users,email',
             'admin_password' => 'required|string|min:8',
             // Subscription
+            'plan_id' => 'nullable|required_if_accepted:start_trial|exists:subscription_plans,id',
+            'start_trial' => 'nullable|boolean',
+            'trial_days' => 'nullable|integer|min:1|max:365',
             'plan_type' => 'required|in:monthly,yearly,custom',
             'custom_days' => 'nullable|integer|min:1|required_if:plan_type,custom',
             'subscription_amount' => 'required|numeric|min:0',
-            'payment_method' => 'nullable|string|in:bkash,sslcommerz,manual',
+            'payment_method' => 'nullable|string|in:bkash,sslcommerz,manual,bank',
             'payment_ref' => 'nullable|string',
         ];
     }

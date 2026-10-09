@@ -7,6 +7,7 @@ use App\Models\RestaurantTable;
 use App\Models\Traits\BelongsToTenant;
 use App\Models\User;
 use App\Models\Voucher;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,14 +20,18 @@ class Order extends Model
         'table_id',
         'voucher_id',
         'order_number',
+        'public_access_token',
         'invoice_number',
         'customer_name',
         'customer_phone',
+        'delivery_address',
         'subtotal',
         'discount',
         'net_amount',
         'vat_rate',
         'vat_amount',
+        'sd_rate',
+        'sd_amount',
         'tax',
         'grand_total',
         'type',
@@ -37,9 +42,14 @@ class Order extends Model
         'payment_status',
         'transaction_id',
         'payment_gateway',
+        'split_payment_details',
         'paid_at',
         'source',
         'served_by',
+    ];
+
+    protected $hidden = [
+        'public_access_token',
     ];
 
     protected function casts(): array
@@ -50,9 +60,12 @@ class Order extends Model
             'net_amount' => 'decimal:2',
             'vat_rate' => 'decimal:2',
             'vat_amount' => 'decimal:2',
+            'sd_rate' => 'decimal:2',
+            'sd_amount' => 'decimal:2',
             'tax' => 'decimal:2',
             'grand_total' => 'decimal:2',
             'paid_at' => 'datetime',
+            'split_payment_details' => 'array',
         ];
     }
 
@@ -106,9 +119,13 @@ class Order extends Model
         return $query->whereDate('created_at', today());
     }
 
+    /** Inclusive of both days: `to` covers the whole day, not just its midnight. */
     public function scopeDateRange($query, $from, $to)
     {
-        return $query->whereBetween('created_at', [$from, $to]);
+        return $query->whereBetween('created_at', [
+            Carbon::parse($from)->startOfDay(),
+            Carbon::parse($to)->endOfDay(),
+        ]);
     }
 
     public function scopeCompleted($query)
@@ -117,16 +134,25 @@ class Order extends Model
     }
 
     // Helpers
+    /**
+     * Format: ORD-{YYYYMMDD}-{TENANT_ID}-{SEQ}. order_number is globally
+     * unique, so the tenant id is part of it, and the sequence continues
+     * from the highest existing number (not a row count, which repeats
+     * after deletes). Call inside the transaction that holds the tenant's
+     * invoice-counter lock so concurrent orders are serialized.
+     */
     public static function generateOrderNumber(int $tenantId): string
     {
-        $prefix = 'ORD';
-        $date = now()->format('Ymd');
-        $count = self::withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->whereDate('created_at', today())
-            ->count() + 1;
+        $prefix = sprintf('ORD-%s-%d-', now()->format('Ymd'), $tenantId);
 
-        return sprintf('%s-%s-%04d', $prefix, $date, $count);
+        $last = self::withoutGlobalScopes()
+            ->where('order_number', 'like', $prefix . '%')
+            ->orderByDesc('order_number')
+            ->value('order_number');
+
+        $next = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
+
+        return sprintf('%s%04d', $prefix, $next);
     }
 
     public function canAdvanceStatus(): bool
@@ -146,6 +172,45 @@ class Order extends Model
 
         $this->update(['status' => $next]);
         return true;
+    }
+
+    /**
+     * Whether a manual status change is allowed: one step forward along
+     * STATUS_FLOW, or cancellation from any non-final state. Terminal
+     * states (completed/cancelled) cannot be changed.
+     */
+    public function canTransitionTo(string $newStatus): bool
+    {
+        if (in_array($this->status, ['completed', 'cancelled'], true)) {
+            return false;
+        }
+
+        return $newStatus === 'cancelled' || self::STATUS_FLOW[$this->status] === $newStatus;
+    }
+
+    /**
+     * Free the table (when no other active order uses it) and give back the
+     * voucher use. Call exactly once when an order reaches a terminal state.
+     */
+    public function releaseResources(bool $restoreVoucher = false): void
+    {
+        if ($this->table_id) {
+            $busy = self::withoutGlobalScopes()
+                ->where('table_id', $this->table_id)
+                ->where('id', '!=', $this->id)
+                ->active()
+                ->exists();
+
+            if (!$busy) {
+                RestaurantTable::withoutGlobalScopes()
+                    ->where('id', $this->table_id)
+                    ->update(['status' => 'available']);
+            }
+        }
+
+        if ($restoreVoucher && $this->voucher_id) {
+            Voucher::withoutGlobalScopes()->find($this->voucher_id)?->releaseUsage();
+        }
     }
 
     public function isDineIn(): bool
@@ -193,6 +258,8 @@ class Order extends Model
             'net_amount' => $totals['net_amount'],
             'vat_rate'   => $totals['vat_rate'],
             'vat_amount' => $totals['vat_amount'],
+            'sd_rate'    => $totals['sd_rate'],
+            'sd_amount'  => $totals['sd_amount'],
             'tax'        => $totals['vat_amount'],
             'grand_total' => $totals['grand_total'],
         ]);

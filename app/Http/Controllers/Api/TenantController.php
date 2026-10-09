@@ -11,10 +11,12 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Carbon\Carbon;
@@ -23,18 +25,32 @@ class TenantController extends BaseApiController
 {
     public function index(Request $request): JsonResponse
     {
+        // Lightweight unpaginated list for dropdowns (subscriptions, user assignment)
+        if ($request->boolean('all')) {
+            return $this->success(
+                Tenant::orderBy('name')->get(['id', 'name', 'slug', 'is_active', 'max_users'])
+            );
+        }
+
         $query = Tenant::query()
             ->withCount(['users', 'orders'])
-            ->with('activeSubscription');
+            ->with('activeSubscription.plan:id,name');
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
-        return $this->paginated($query->latest());
+        if ($status = $request->get('status')) {
+            $query->where('is_active', $status === 'active');
+        }
+
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+
+        return $this->paginated($query->latest(), $perPage);
     }
 
     public function store(StoreTenantRequest $request): JsonResponse
@@ -51,6 +67,7 @@ class TenantController extends BaseApiController
                 'commission_rate' => $request->commission_rate ?? 0,
                 'tax_rate' => $request->tax_rate ?? 0,
                 'max_users' => $request->max_users ?? 5,
+                'is_active' => true,
             ]);
 
             // Create admin user for tenant
@@ -64,16 +81,48 @@ class TenantController extends BaseApiController
             ]);
 
             // Create subscription
-            $planDays = match ($request->plan_type) {
-                'monthly' => config('saas.plans.monthly.duration_days', 30),
-                'yearly' => config('saas.plans.yearly.duration_days', 365),
-                'custom' => $request->custom_days ?? 30,
-                default => 30,
-            };
+            $planModel = $request->plan_id
+                ? \App\Models\SubscriptionPlan::find($request->plan_id)
+                : null;
+
+            $planDays = $planModel
+                ? $planModel->duration_days
+                : match ($request->plan_type) {
+                    'monthly' => config('saas.plans.monthly.duration_days', 30),
+                    'yearly' => config('saas.plans.yearly.duration_days', 365),
+                    'custom' => $request->custom_days ?? 30,
+                    default => 30,
+                };
+
+            if ($planModel && $request->boolean('start_trial')) {
+                app(SubscriptionService::class)->createTrialSubscription(
+                    $tenant,
+                    $planModel,
+                    (int) ($request->trial_days ?: $planModel->trial_days ?: config('saas.trial.default_days', 14))
+                );
+
+                // Trial uses the plan's max_users unless the admin set one explicitly
+                if ($request->filled('max_users')) {
+                    $tenant->update(['max_users' => $request->max_users]);
+                }
+
+                AuditLogger::logCreated($tenant);
+
+                return $this->created([
+                    'tenant' => $tenant->fresh()->load('activeSubscription'),
+                    'admin' => $admin->fresh(),
+                ], 'Restaurant onboarded on a free trial');
+            }
+
+            // Use plan max_users if a plan was selected
+            if ($planModel && !$request->filled('max_users')) {
+                $tenant->update(['max_users' => $planModel->max_users]);
+            }
 
             Subscription::withoutGlobalScopes()->create([
                 'tenant_id' => $tenant->id,
-                'plan_type' => $request->plan_type,
+                'plan_id' => $planModel?->id,
+                'plan_type' => $planModel ? $planModel->subscriptionType() : $request->plan_type,
                 'amount' => $request->subscription_amount,
                 'payment_method' => $request->payment_method ?? 'manual',
                 'payment_ref' => $request->payment_ref,
@@ -81,6 +130,8 @@ class TenantController extends BaseApiController
                 'expires_at' => now()->addDays($planDays),
                 'status' => 'active',
             ]);
+
+            AuditLogger::logCreated($tenant);
 
             return $this->created([
                 'tenant' => $tenant->fresh()->load('activeSubscription'),
@@ -111,12 +162,19 @@ class TenantController extends BaseApiController
         }
 
         $data = $request->validated();
+        $original = $tenant->toArray();
 
         if ($request->hasFile('logo')) {
+            // Delete old logo when replacing
+            if ($tenant->logo) {
+                Storage::disk('public')->delete($tenant->logo);
+            }
             $data['logo'] = $request->file('logo')->store('tenants/logos', 'public');
         }
 
         $tenant->update($data);
+
+        AuditLogger::logUpdated($tenant, $original);
 
         return $this->success($tenant->fresh(), 'Tenant updated successfully');
     }
@@ -130,6 +188,8 @@ class TenantController extends BaseApiController
         }
 
         $tenant->update(['is_active' => false]);
+
+        AuditLogger::logAction('tenant_deactivated', $tenant);
 
         return $this->success(null, 'Tenant deactivated successfully');
     }
@@ -190,6 +250,7 @@ class TenantController extends BaseApiController
 
         // Subscription history
         $subscriptions = Subscription::withoutGlobalScopes()
+            ->with('plan:id,name')
             ->where('tenant_id', $id)
             ->orderByDesc('created_at')
             ->get();
@@ -219,7 +280,7 @@ class TenantController extends BaseApiController
             ->get();
 
         return $this->success([
-            'tenant' => $tenant->load(['activeSubscription', 'users']),
+            'tenant' => $tenant->load(['activeSubscription.plan:id,name', 'users']),
             'stats' => [
                 'total_orders' => $totalOrders,
                 'orders_this_month' => $ordersThisMonth,

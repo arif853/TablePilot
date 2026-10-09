@@ -21,18 +21,68 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Proactive token refresh. JWTs expire after JWT_TTL (60 min) and the refresh endpoint
+// requires a still-valid token, so renew shortly before expiry instead of logging
+// staff out mid-shift. Impersonation tokens are left to expire on purpose.
+const REFRESH_WINDOW_MS = 5 * 60 * 1000;
+let refreshInFlight = null;
+
+const tokenExpiryMs = (token) => {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return payload.exp ? payload.exp * 1000 : null;
+    } catch {
+        return null;
+    }
+};
+
+const refreshTokenIfExpiring = () => {
+    const { token, isImpersonating, setToken } = useAuthStore.getState();
+    if (!token || refreshInFlight || isImpersonating()) return;
+
+    const expiresAt = tokenExpiryMs(token);
+    if (!expiresAt || expiresAt - Date.now() > REFRESH_WINDOW_MS || expiresAt <= Date.now()) return;
+
+    refreshInFlight = api
+        .post('/auth/refresh')
+        .then(({ data }) => {
+            // Ignore if the user logged out or switched accounts meanwhile
+            if (useAuthStore.getState().token === token && data?.access_token) setToken(data.access_token);
+        })
+        .catch(() => {})
+        .finally(() => {
+            refreshInFlight = null;
+        });
+};
+
+if (typeof window !== 'undefined') {
+    setInterval(refreshTokenIfExpiring, 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshTokenIfExpiring();
+    });
+}
+
 // Response interceptor - handle auth errors
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const warning = response.headers?.['x-subscription-warning'];
+        if (warning === 'grace_period') {
+            sessionStorage.setItem('subscription_warning', warning);
+        }
+        return response;
+    },
     (error) => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
             useAuthStore.getState().logout();
             window.location.href = '/login';
         }
 
         if (error.response?.status === 402) {
-            // Subscription expired
-            window.location.href = '/dashboard/settings?subscription=expired';
+            // Subscription or trial expired
+            const isTrialExpired = error.response?.data?.trial_expired === true;
+            window.location.href = isTrialExpired
+                ? '/dashboard/settings?trial=expired'
+                : '/dashboard/settings?subscription=expired';
         }
 
         return Promise.reject(error);
@@ -41,14 +91,33 @@ api.interceptors.response.use(
 
 export default api;
 
+// First validation error if present, else the server message
+export const apiErrorMessage = (err, fallback = 'Something went wrong') => {
+    const errors = err?.response?.data?.errors;
+    if (errors && typeof errors === 'object') {
+        const first = Object.values(errors)[0];
+        if (Array.isArray(first) && first[0]) return first[0];
+    }
+    return err?.response?.data?.message || fallback;
+};
+
 // ==================== API Service Functions ====================
 
 // Auth
 export const authAPI = {
-    login: (data) => api.post('/auth/login', data),
+    // A 401 here means wrong credentials, not an expired session: let the login form handle it
+    login: (data) => api.post('/auth/login', data, { skipAuthRedirect: true }),
+    forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+    resetPassword: (data) => api.post('/auth/reset-password', data),
     register: (data) => api.post('/auth/register', data),
+    verifyOtp: (data) => api.post('/auth/verify-otp', data),
+    resendOtp: (data) => api.post('/auth/resend-otp', data),
     me: () => api.get('/auth/me'),
-    logout: () => api.post('/auth/logout'),
+    // Capture the token now: callers clear the store right after, before the request interceptor runs
+    logout: () => {
+        const token = useAuthStore.getState().token;
+        return api.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` }, skipAuthRedirect: true });
+    },
     refresh: () => api.post('/auth/refresh'),
 };
 
@@ -92,6 +161,7 @@ export const tableAPI = {
     transfer: (data) => api.post('/tables/transfer', data),
     qrCode: (id) => api.get(`/tables/${id}/qr`),
     parcelQr: () => api.get('/tables/parcel-qr'),
+    qrCodes: () => api.get('/tables/qr-codes'),
 };
 
 // Vouchers
@@ -110,8 +180,12 @@ export const orderAPI = {
     updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
     cancel: (id) => api.post(`/orders/${id}/cancel`),
     markPaid: (id, data = {}) => api.post(`/orders/${id}/mark-paid`, data),
-    track: (orderNumber) => api.get(`/customer/order/track/${orderNumber}`),
-    invoice: (orderNumber) => api.get(`/customer/order/${orderNumber}/invoice`),
+    track: (orderNumber, accessToken) => api.get(`/customer/order/track/${orderNumber}`, {
+        params: accessToken ? { access_token: accessToken } : undefined,
+    }),
+    invoice: (orderNumber, accessToken) => api.get(`/customer/order/${orderNumber}/invoice`, {
+        params: accessToken ? { access_token: accessToken } : undefined,
+    }),
 };
 
 // Kitchen
@@ -124,6 +198,8 @@ export const kitchenAPI = {
 
 // Reports
 export const reportAPI = {
+    financial: (params) => api.get('/reports/financial', { params }),
+    financialExport: (params) => api.get('/reports/financial/export', { params, responseType: 'blob' }),
     sales: (params) => api.get('/reports/sales', { params }),
     vouchers: (params) => api.get('/reports/vouchers', { params }),
     tables: (params) => api.get('/reports/tables', { params }),
@@ -142,6 +218,12 @@ export const settlementAPI = {
 };
 
 // Users
+export const profileAPI = {
+    get: () => api.get('/profile'),
+    update: (data) => api.put('/profile', data),
+    changePassword: (data) => api.put('/profile/password', data),
+};
+
 export const userAPI = {
     list: (params) => api.get('/users', { params }),
     create: (data) => api.post('/users', data),
@@ -152,7 +234,17 @@ export const userAPI = {
 // Subscription
 export const subscriptionAPI = {
     current: () => api.get('/subscription/current'),
+    plans: () => api.get('/subscription/plans'),
+    initiate: (data) => api.post('/subscription/initiate', data),
+    verify: (data) => api.post('/subscription/verify', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    }),
     pay: (data) => api.post('/subscription/pay', data),
+};
+
+// Module Access (tenant-facing)
+export const moduleAPI = {
+    myAccess: () => api.get('/modules/my-access'),
 };
 
 // Branding (restaurant admin)
@@ -181,6 +273,10 @@ export const customerAPI = {
 // POS Terminal
 export const posAPI = {
     createOrder: (data) => api.post('/pos/orders', data),
+    currentShift: () => api.get('/pos/shifts/current'),
+    listShifts: (params) => api.get('/pos/shifts', { params }),
+    openShift: (data) => api.post('/pos/shifts/open', data),
+    closeShift: (data) => api.post('/pos/shifts/close', data),
 };
 
 // Contact (public)
@@ -192,9 +288,15 @@ export const contactAPI = {
 export const adminAPI = {
     tenants: {
         list: (params) => api.get('/admin/tenants', { params }),
+        options: () => api.get('/admin/tenants', { params: { all: 1 } }),
         create: (data) => api.post('/admin/tenants', data),
         show: (id) => api.get(`/admin/tenants/${id}`),
         update: (id, data) => api.put(`/admin/tenants/${id}`, data),
+        // Multipart (logo upload): PHP only parses file bodies on POST, so spoof the PUT
+        updateForm: (id, formData) => {
+            formData.append('_method', 'PUT');
+            return api.post(`/admin/tenants/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        },
         delete: (id) => api.delete(`/admin/tenants/${id}`),
         dashboard: () => api.get('/admin/tenants-dashboard'),
         stats: (id) => api.get(`/admin/tenants/${id}/stats`),
@@ -203,11 +305,17 @@ export const adminAPI = {
         bulkAction: (data) => api.post('/admin/tenants/bulk-action', data),
         export: () => api.get('/admin/tenants/export', { responseType: 'blob' }),
     },
+    users: {
+        list: (params) => api.get('/admin/users', { params }),
+        create: (data) => api.post('/admin/users', data),
+        update: (id, data) => api.put(`/admin/users/${id}`, data),
+        deactivate: (id) => api.delete(`/admin/users/${id}`),
+    },
     subscriptions: {
         list: (params) => api.get('/admin/subscriptions', { params }),
         create: (data) => api.post('/admin/subscriptions', data),
         show: (id) => api.get(`/admin/subscriptions/${id}`),
-        cancel: (id) => api.post(`/admin/subscriptions/${id}/cancel`),
+        cancel: (id, data) => api.post(`/admin/subscriptions/${id}/cancel`, data),
         expiringSoon: () => api.get('/admin/subscriptions/expiring-soon'),
         extend: (id, data) => api.post(`/admin/subscriptions/${id}/extend`, data),
         renew: (tenantId, data) => api.post(`/admin/subscriptions/${tenantId}/renew`, data),
@@ -217,7 +325,26 @@ export const adminAPI = {
         create: (data) => api.post('/admin/plans', data),
         show: (id) => api.get(`/admin/plans/${id}`),
         update: (id, data) => api.put(`/admin/plans/${id}`, data),
+        toggle: (id) => api.patch(`/admin/plans/${id}/toggle`),
         delete: (id) => api.delete(`/admin/plans/${id}`),
+        modules: (planId) => api.get(`/admin/plans/${planId}/modules`),
+        syncModules: (planId, moduleKeys) => api.post(`/admin/plans/${planId}/modules/sync`, { module_keys: moduleKeys }),
+    },
+    modules: {
+        list: () => api.get('/admin/modules'),
+        toggle: (key) => api.patch(`/admin/modules/${key}/toggle`),
+    },
+    tenantModules: {
+        matrix: (tenantId) => api.get(`/admin/tenants/${tenantId}/modules`),
+        grant: (tenantId, data) => api.post(`/admin/tenants/${tenantId}/modules/grant`, data),
+        revoke: (tenantId, data) => api.post(`/admin/tenants/${tenantId}/modules/revoke`, data),
+        removeOverride: (tenantId, moduleKey) => api.delete(`/admin/tenants/${tenantId}/modules/${moduleKey}`),
+    },
+    tenantApplications: {
+        list: (params) => api.get('/admin/tenant-applications', { params }),
+        show: (id) => api.get(`/admin/tenant-applications/${id}`),
+        approve: (id, data) => api.post(`/admin/tenant-applications/${id}/approve`, data),
+        reject: (id, data) => api.post(`/admin/tenant-applications/${id}/reject`, data),
     },
     settlements: {
         list: (params) => api.get('/admin/settlements', { params }),
@@ -253,6 +380,7 @@ export const adminAPI = {
         queueStats: () => api.get('/admin/system/queue-stats'),
         retryFailedJobs: () => api.post('/admin/system/retry-failed-jobs'),
         clearCache: (type) => api.post('/admin/system/clear-cache', { type }),
+        storageLink: () => api.post('/admin/system/storage-link'),
         logs: (lines = 100) => api.get('/admin/system/logs', { params: { lines } }),
     },
     auditLogs: {

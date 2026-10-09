@@ -3,6 +3,7 @@ import { useParams, useNavigate, useOutletContext, useSearchParams, Link } from 
 import { useMutation } from '@tanstack/react-query';
 import { useCartStore } from '../../stores/cartStore';
 import { customerAPI } from '../../services/api';
+import { restaurantColor, restaurantTheme } from '../../utils/restaurantTheme';
 import toast from 'react-hot-toast';
 import {
     HiOutlineCash,
@@ -18,17 +19,17 @@ import {
 } from 'react-icons/hi';
 
 // Helper: save recent orders to localStorage
-function saveRecentOrder(slug, orderNumber) {
+function saveRecentOrder(slug, orderNumber, accessToken = null) {
     try {
         const key = `recent_orders_${slug}`;
         const orders = JSON.parse(localStorage.getItem(key) || '[]');
-        const entry = { orderNumber, placedAt: new Date().toISOString() };
+        const entry = { orderNumber, placedAt: new Date().toISOString(), accessToken };
         const updated = [entry, ...orders.filter(o => o.orderNumber !== orderNumber)].slice(0, 10);
         localStorage.setItem(key, JSON.stringify(updated));
         // Also save globally
         const globalKey = 'recent_orders';
         const globalOrders = JSON.parse(localStorage.getItem(globalKey) || '[]');
-        const globalEntry = { orderNumber, slug, placedAt: new Date().toISOString() };
+        const globalEntry = { orderNumber, slug, placedAt: new Date().toISOString(), accessToken };
         const globalUpdated = [globalEntry, ...globalOrders.filter(o => o.orderNumber !== orderNumber)].slice(0, 20);
         localStorage.setItem(globalKey, JSON.stringify(globalUpdated));
     } catch { /* ignore */ }
@@ -41,7 +42,8 @@ export default function CustomerCartPage() {
     const { restaurant, tableId } = useOutletContext() || {};
     const { items, removeItem, updateQty, clearCart, getSubtotal, getOrderPayload, setNotes } = useCartStore();
 
-    const primaryColor = restaurant?.primary_color || '#3B82F6';
+    const primaryColor = restaurantColor(restaurant?.primary_color);
+    const { on: onColor, ink: inkColor } = restaurantTheme(primaryColor);
 
     const [voucher, setVoucher] = useState('');
     const [voucherData, setVoucherData] = useState(null);
@@ -96,6 +98,7 @@ export default function CustomerCartPage() {
         onSuccess: (res) => {
             const orderData = res.data.data;
             const orderNumber = orderData.order_number;
+            const accessToken = orderData.access_token || null;
 
             // Save customer info for next time
             if (customerName || customerPhone) {
@@ -105,7 +108,7 @@ export default function CustomerCartPage() {
             }
 
             // Save to recent orders
-            saveRecentOrder(slug, orderNumber);
+            saveRecentOrder(slug, orderNumber, accessToken);
 
             clearCart();
 
@@ -118,7 +121,10 @@ export default function CustomerCartPage() {
             }
 
             toast.success('Order placed!');
-            navigate(`/order/${orderNumber}`);
+            const trackingUrl = accessToken
+                ? `/order/${orderNumber}?access_token=${encodeURIComponent(accessToken)}`
+                : `/order/${orderNumber}`;
+            navigate(trackingUrl);
         },
         onError: (err) => toast.error(err.response?.data?.message || 'Order failed'),
     });
@@ -148,17 +154,23 @@ export default function CustomerCartPage() {
         <div className="pb-32 px-3">
             {/* Back + Header */}
             <div className="flex items-center gap-3 py-4">
-                <Link to={`/restaurant/${slug}?${searchParams.toString()}`} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition">
-                    <HiOutlineArrowLeft className="w-5 h-5 text-gray-600" />
+                <Link to={`/restaurant/${slug}?${searchParams.toString()}`} className="w-10 h-10 rounded-xl bg-white ring-1 ring-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 transition" aria-label="Back to menu">
+                    <HiOutlineArrowLeft className="w-5 h-5 text-gray-700" />
                 </Link>
-                <h2 className="text-lg font-bold text-gray-900">Your Cart ({items.length})</h2>
+                <div>
+                    <h2 className="text-lg font-bold tracking-tight text-gray-900 leading-tight">Your cart</h2>
+                    <p className="text-xs text-gray-500">{items.length} {items.length === 1 ? 'item' : 'items'}</p>
+                </div>
             </div>
 
             {items.length === 0 ? (
                 <div className="text-center py-16">
-                    <HiOutlineShoppingBag className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <p className="text-gray-400 text-lg font-medium">Your cart is empty</p>
-                    <Link to={`/restaurant/${slug}?${searchParams.toString()}`} className="inline-block mt-3 px-6 py-2.5 rounded-full text-white text-sm font-medium" style={{ backgroundColor: primaryColor }}>
+                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-white ring-1 ring-gray-200 flex items-center justify-center">
+                        <HiOutlineShoppingBag className="w-9 h-9 text-gray-300" />
+                    </div>
+                    <p className="text-gray-800 text-lg font-semibold">Your cart is empty</p>
+                    <p className="text-gray-400 text-sm mt-1">Add something tasty from the menu.</p>
+                    <Link to={`/restaurant/${slug}?${searchParams.toString()}`} className="inline-block mt-5 px-6 py-2.5 rounded-xl text-on-restaurant text-sm font-semibold shadow-md" style={{ backgroundColor: primaryColor }}>
                         Browse Menu
                     </Link>
                 </div>
@@ -167,49 +179,51 @@ export default function CustomerCartPage() {
                     {/* Cart Items */}
                     <div className="space-y-2.5 mb-5">
                         {items.map((item) => (
-                            <div key={item.menu_item_id} className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100">
+                            <div key={item.menu_item_id} className="bg-white rounded-2xl p-3.5 shadow-sm ring-1 ring-gray-200/70">
                                 <div className="flex items-center gap-3">
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-semibold text-gray-900 text-sm truncate">{item.name}</h3>
-                                        <p className="text-xs font-bold mt-0.5" style={{ color: primaryColor }}>৳{parseFloat(item.price).toFixed(2)}</p>
+                                        <p className="text-xs font-bold mt-0.5" style={{ color: inkColor }}>৳{parseFloat(item.price).toFixed(2)}</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100">
                                         <button
                                             onClick={() => updateQty(item.menu_item_id, item.qty - 1)}
-                                            className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-bold active:bg-red-100 active:text-red-600 transition"
+                                            className="w-7 h-7 rounded-lg bg-white text-gray-700 shadow-sm flex items-center justify-center text-sm font-bold active:bg-red-100 active:text-red-600 transition"
+                                            aria-label="Decrease quantity"
                                         >
                                             −
                                         </button>
                                         <span className="w-6 text-center font-bold text-sm">{item.qty}</span>
                                         <button
                                             onClick={() => updateQty(item.menu_item_id, item.qty + 1)}
-                                            className="w-7 h-7 rounded-full text-white flex items-center justify-center text-sm font-bold active:scale-90 transition"
+                                            className="w-7 h-7 rounded-lg text-on-restaurant shadow-sm flex items-center justify-center text-sm font-bold active:scale-90 transition"
                                             style={{ backgroundColor: primaryColor }}
+                                            aria-label="Increase quantity"
                                         >
                                             +
                                         </button>
                                     </div>
-                                    <p className="text-sm font-bold text-gray-900 w-14 text-right">
+                                    <p className="text-sm font-bold text-gray-900 w-16 text-right tabular">
                                         ৳{(item.price * item.qty).toFixed(0)}
                                     </p>
                                 </div>
                                 {/* Remove button */}
                                 <div className="flex justify-end mt-1">
-                                    <button onClick={() => removeItem(item.menu_item_id)} className="text-xs text-red-400 hover:text-red-600 transition">Remove</button>
+                                    <button onClick={() => removeItem(item.menu_item_id)} className="text-xs font-medium text-gray-400 hover:text-red-600 transition">Remove</button>
                                 </div>
                             </div>
                         ))}
                     </div>
 
                     {/* Order Type Selection */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5 block">Order Type</label>
+                    <div className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-gray-200/70 mb-3">
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2.5 block">Order Type</label>
                         <div className="flex gap-2">
                             {tableId && (
                                 <button
                                     onClick={() => setOrderType('dine')}
-                                    className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all"
-                                    style={orderType === 'dine' ? { backgroundColor: primaryColor, color: '#fff' } : { backgroundColor: '#f3f4f6', color: '#6b7280' }}
+                                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                                    style={orderType === 'dine' ? { backgroundColor: primaryColor, color: onColor } : { backgroundColor: '#f3f4f6', color: '#4b5563' }}
                                 >
                                     🍽️ Dine-in
                                 </button>
@@ -220,8 +234,8 @@ export default function CustomerCartPage() {
                                     // Reset to cash if pay_later was selected (not available for parcel)
                                     if (paymentMethod === 'pay_later') setPaymentMethod('cash');
                                 }}
-                                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all"
-                                style={orderType === 'parcel' ? { backgroundColor: primaryColor, color: '#fff' } : { backgroundColor: '#f3f4f6', color: '#6b7280' }}
+                                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                                style={orderType === 'parcel' ? { backgroundColor: primaryColor, color: onColor } : { backgroundColor: '#f3f4f6', color: '#4b5563' }}
                             >
                                 📦 Takeaway
                             </button>
@@ -229,15 +243,15 @@ export default function CustomerCartPage() {
                     </div>
 
                     {/* Customer Info - always shown, required fields differ by type */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 space-y-3">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-gray-200/70 mb-3 space-y-3">
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
                             Customer Info {orderType === 'dine' && <span className="text-gray-400 normal-case">(optional)</span>}
                         </label>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="relative">
                                 <HiOutlineUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
-                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/60 text-sm focus:bg-white focus:ring-4 focus:ring-restaurant/15 focus:border-restaurant outline-none placeholder:text-gray-400"
                                     placeholder={orderType === 'parcel' ? 'Name *' : 'Name'}
                                     value={customerName}
                                     onChange={(e) => setCustomerName(e.target.value)}
@@ -246,7 +260,7 @@ export default function CustomerCartPage() {
                             <div className="relative">
                                 <HiOutlinePhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
-                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/60 text-sm focus:bg-white focus:ring-4 focus:ring-restaurant/15 focus:border-restaurant outline-none placeholder:text-gray-400"
                                     placeholder={orderType === 'parcel' ? 'Phone *' : 'Phone'}
                                     value={customerPhone}
                                     onChange={(e) => setCustomerPhone(e.target.value)}
@@ -256,11 +270,11 @@ export default function CustomerCartPage() {
                     </div>
 
                     {/* Order Notes */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-gray-200/70 mb-3">
                         <div className="relative">
                             <HiOutlineAnnotation className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
                             <textarea
-                                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none"
+                                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/60 text-sm focus:bg-white focus:ring-4 focus:ring-restaurant/15 focus:border-restaurant outline-none placeholder:text-gray-400 resize-none"
                                 placeholder="Special instructions or notes..."
                                 rows={2}
                                 value={notes}
@@ -270,13 +284,13 @@ export default function CustomerCartPage() {
                     </div>
 
                     {/* Voucher */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2.5 block">Voucher Code</label>
+                    <div className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-gray-200/70 mb-3">
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2.5 block">Voucher Code</label>
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <HiOutlineTag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
-                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none disabled:bg-gray-50"
+                                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/60 text-sm focus:bg-white focus:ring-4 focus:ring-restaurant/15 focus:border-restaurant outline-none placeholder:text-gray-400 disabled:bg-gray-50"
                                     placeholder="Enter code"
                                     value={voucher}
                                     onChange={(e) => setVoucher(e.target.value.toUpperCase())}
@@ -310,48 +324,48 @@ export default function CustomerCartPage() {
                     </div>
 
                     {/* Payment Method */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 block">Payment Method</label>
+                    <div className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-gray-200/70 mb-3">
+                        <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3 block">Payment Method</label>
                         <div className={`grid gap-3 ${orderType === 'dine' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                             <button
                                 onClick={() => setPaymentMethod('cash')}
                                 className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
                                     paymentMethod === 'cash'
-                                        ? 'border-blue-600 bg-blue-50'
+                                        ? 'border-restaurant bg-restaurant/10'
                                         : 'border-gray-200 bg-white hover:border-gray-300'
                                 }`}
                             >
-                                <HiOutlineCash className="w-6 h-6" style={{ color: paymentMethod === 'cash' ? primaryColor : '#6b7280' }} />
-                                <span className="text-xs font-medium" style={{ color: paymentMethod === 'cash' ? primaryColor : '#6b7280' }}>Counter</span>
+                                <HiOutlineCash className="w-6 h-6" style={{ color: paymentMethod === 'cash' ? inkColor : '#6b7280' }} />
+                                <span className="text-xs font-medium" style={{ color: paymentMethod === 'cash' ? inkColor : '#6b7280' }}>Counter</span>
                             </button>
                             <button
                                 onClick={() => setPaymentMethod('online')}
                                 className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
                                     paymentMethod === 'online'
-                                        ? 'border-blue-600 bg-blue-50'
+                                        ? 'border-restaurant bg-restaurant/10'
                                         : 'border-gray-200 bg-white hover:border-gray-300'
                                 }`}
                             >
-                                <HiOutlineCreditCard className="w-6 h-6" style={{ color: paymentMethod === 'online' ? primaryColor : '#6b7280' }} />
-                                <span className="text-xs font-medium" style={{ color: paymentMethod === 'online' ? primaryColor : '#6b7280' }}>Online</span>
+                                <HiOutlineCreditCard className="w-6 h-6" style={{ color: paymentMethod === 'online' ? inkColor : '#6b7280' }} />
+                                <span className="text-xs font-medium" style={{ color: paymentMethod === 'online' ? inkColor : '#6b7280' }}>Online</span>
                             </button>
                             {orderType === 'dine' && (
                                 <button
                                     onClick={() => setPaymentMethod('pay_later')}
                                     className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
                                         paymentMethod === 'pay_later'
-                                            ? 'border-blue-600 bg-blue-50'
+                                            ? 'border-restaurant bg-restaurant/10'
                                             : 'border-gray-200 bg-white hover:border-gray-300'
                                     }`}
                                 >
-                                    <HiOutlineClock className="w-6 h-6" style={{ color: paymentMethod === 'pay_later' ? primaryColor : '#6b7280' }} />
-                                    <span className="text-xs font-medium" style={{ color: paymentMethod === 'pay_later' ? primaryColor : '#6b7280' }}>Pay Later</span>
+                                    <HiOutlineClock className="w-6 h-6" style={{ color: paymentMethod === 'pay_later' ? inkColor : '#6b7280' }} />
+                                    <span className="text-xs font-medium" style={{ color: paymentMethod === 'pay_later' ? inkColor : '#6b7280' }}>Pay Later</span>
                                 </button>
                             )}
                         </div>
                         {paymentMethod === 'online' && (
-                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                                <p className="text-xs text-blue-700">
+                            <div className="mt-3 p-3 bg-restaurant/10 border border-restaurant/30 rounded-xl">
+                                <p className="text-xs text-gray-700">
                                     You will be redirected to SSLCommerz secure payment gateway.
                                 </p>
                             </div>
@@ -366,10 +380,10 @@ export default function CustomerCartPage() {
                     </div>
 
                     {/* Invoice Preview */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-gray-200/70 mb-3">
                         <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
                             <HiOutlineDocumentText className="w-5 h-5 text-gray-500" />
-                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Order Summary</span>
+                            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Order Summary</span>
                         </div>
 
                         {/* Item details */}
@@ -398,9 +412,9 @@ export default function CustomerCartPage() {
                                 <span className="text-gray-500">VAT/Tax ({taxRate || 0}%)</span>
                                 <span className="font-medium">৳{tax.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
-                                <span>Total Payable</span>
-                                <span style={{ color: primaryColor }}>৳{total.toFixed(2)}</span>
+                            <div className="flex justify-between items-baseline text-base font-bold pt-3 mt-1 border-t border-gray-200">
+                                <span>Total payable</span>
+                                <span style={{ color: inkColor }}>৳{total.toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
@@ -414,12 +428,12 @@ export default function CustomerCartPage() {
 
             {/* Fixed Place Order Button */}
             {items.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 p-3 bg-white border-t border-gray-100 max-w-lg mx-auto safe-area-bottom">
+                <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-md border-t border-gray-200/70 max-w-lg mx-auto safe-area-bottom">
                     <button
                         onClick={handlePlace}
                         disabled={placeOrder.isPending || payingOnline}
-                        className="w-full py-3.5 text-white rounded-2xl text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg"
-                        style={{ backgroundColor: primaryColor }}
+                        className="w-full py-4 text-on-restaurant rounded-2xl text-sm font-bold transition-all active:scale-[0.98] disabled:opacity-50"
+                        style={{ backgroundColor: primaryColor, boxShadow: `0 10px 24px -8px ${primaryColor}aa` }}
                     >
                         {payingOnline
                             ? 'Redirecting to payment...'

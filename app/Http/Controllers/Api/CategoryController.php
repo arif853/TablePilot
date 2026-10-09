@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Models\Category;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,6 +25,9 @@ class CategoryController extends BaseApiController
     public function store(StoreCategoryRequest $request): JsonResponse
     {
         $category = Category::create($request->validated());
+
+        AuditLogger::logCreated($category);
+
         return $this->created($category, 'Category created');
     }
 
@@ -47,7 +51,10 @@ class CategoryController extends BaseApiController
             return $this->notFound('Category not found');
         }
 
+        $original = $category->toArray();
         $category->update($request->validated());
+
+        AuditLogger::logUpdated($category, $original);
 
         return $this->success($category->fresh(), 'Category updated');
     }
@@ -62,6 +69,9 @@ class CategoryController extends BaseApiController
 
         // Move items to uncategorized
         $category->menuItems()->update(['category_id' => null]);
+
+        AuditLogger::logDeleted($category);
+
         $category->delete();
 
         return $this->success(null, 'Category deleted');

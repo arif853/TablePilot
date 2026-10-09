@@ -9,8 +9,10 @@ use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SslCommerzService;
+use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -18,6 +20,10 @@ use Illuminate\Support\Str;
 
 class OnboardingController extends BaseApiController
 {
+    public function __construct(
+        protected SubscriptionService $subscriptionService
+    ) {}
+
     /**
      * Step 1: Setup restaurant (create tenant) for a registered user without a tenant.
      *
@@ -25,7 +31,8 @@ class OnboardingController extends BaseApiController
      */
     public function setupRestaurant(Request $request): JsonResponse
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
 
         if ($user->tenant_id) {
             return $this->error('You already have a restaurant associated with your account.', 422);
@@ -58,7 +65,8 @@ class OnboardingController extends BaseApiController
                 'commission_rate' => config('saas.default_commission_rate', 5.00),
                 'tax_rate' => 0,
                 'max_users' => 5,
-                'is_active' => false, // Inactive until subscription is paid
+                'is_active' => true, // Active immediately on trial
+                'trial_ends_at' => now()->addDays(config('saas.trial.default_days', 14)),
             ]);
 
             // Link the user to the new tenant
@@ -81,8 +89,10 @@ class OnboardingController extends BaseApiController
                 'tenant' => $tenant,
                 'user' => $user->fresh()->load('tenant'),
                 'next_step' => 'subscribe',
-                'message' => 'Restaurant created. Please subscribe to activate your account.',
-            ], 'Restaurant setup completed. Next: choose a subscription plan.');
+                'trial_ends_at' => $tenant->trial_ends_at,
+                'trial_days_remaining' => $tenant->trialDaysRemaining(),
+                'message' => 'Restaurant created. Free trial active for ' . config('saas.trial.default_days', 14) . ' days.',
+            ], 'Restaurant setup completed. Your free trial is now active.');
         });
     }
 
@@ -93,7 +103,8 @@ class OnboardingController extends BaseApiController
      */
     public function initiateSubscription(Request $request): JsonResponse
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
 
         if (!$user->tenant_id) {
             return $this->error('Please set up your restaurant first.', 422);
@@ -127,7 +138,7 @@ class OnboardingController extends BaseApiController
         $subscriptionData = [
             'tenant_id' => $tenant->id,
             'plan_id' => $plan->id,
-            'plan_type' => $plan->slug,
+            'plan_type' => $plan->subscriptionType(),
             'amount' => $plan->price,
             'duration_days' => $plan->duration_days,
             'tran_id' => $tranId,
@@ -140,7 +151,13 @@ class OnboardingController extends BaseApiController
 
         // Check if SSLCommerz is enabled
         if (!$sslCommerz->isEnabled()) {
-            // If gateway is not configured, create subscription directly (for dev/testing)
+            // Free activation is a local/testing convenience only; in production
+            // an unconfigured gateway must never hand out subscriptions.
+            if (!app()->environment(['local', 'testing'])) {
+                cache()->forget("subscription_payment:{$tranId}");
+                return $this->error('Online payment is not available at this time.', 503);
+            }
+
             return $this->createSubscriptionDirectly($tenant, $plan, 'manual', $tranId);
         }
 
@@ -178,33 +195,18 @@ class OnboardingController extends BaseApiController
      */
     public function paymentSuccess(Request $request): \Illuminate\Http\RedirectResponse
     {
-        $tranId = $request->input('tran_id');
-        $subscriptionData = cache()->get("subscription_payment:{$tranId}");
-
+        $tranId = (string) $request->input('tran_id');
         $frontendUrl = config('app.frontend_url', config('app.url'));
 
-        if (!$subscriptionData) {
-            return redirect("{$frontendUrl}/onboarding/payment?status=failed&message=Invalid+or+expired+payment+session");
+        $result = $this->settleGatewayPayment($request, $tranId);
+
+        if ($result === 'ok') {
+            return redirect("{$frontendUrl}/onboarding/payment?status=success&tran_id={$tranId}");
         }
 
-        $sslCommerz = new SslCommerzService();
+        $message = $result === 'validation_failed' ? 'Payment+validation+failed' : 'Invalid+or+expired+payment+session';
 
-        if (!$sslCommerz->validatePayment($request->all())) {
-            return redirect("{$frontendUrl}/onboarding/payment?status=failed&message=Payment+validation+failed");
-        }
-
-        // Create subscription
-        $this->activateSubscription(
-            $subscriptionData,
-            $request->input('card_type', 'online'),
-            $tranId,
-            $request->input('val_id')
-        );
-
-        // Clear cache
-        cache()->forget("subscription_payment:{$tranId}");
-
-        return redirect("{$frontendUrl}/onboarding/payment?status=success&tran_id={$tranId}");
+        return redirect("{$frontendUrl}/onboarding/payment?status=failed&message={$message}");
     }
 
     /**
@@ -238,42 +240,47 @@ class OnboardingController extends BaseApiController
      */
     public function paymentIpn(Request $request): JsonResponse
     {
-        $tranId = $request->input('tran_id');
-        $subscriptionData = cache()->get("subscription_payment:{$tranId}");
+        $tranId = (string) $request->input('tran_id');
 
-        if (!$subscriptionData) {
-            Log::warning("IPN received for unknown transaction: {$tranId}");
-            return response()->json(['status' => 'ignored']);
+        $result = $this->settleGatewayPayment($request, $tranId);
+
+        if ($result !== 'ok') {
+            Log::warning("Onboarding IPN {$result} for transaction: {$tranId}");
         }
 
-        $sslCommerz = new SslCommerzService();
+        return response()->json(['status' => $result]);
+    }
 
-        if (!$sslCommerz->validatePayment($request->all())) {
-            Log::warning("IPN validation failed for transaction: {$tranId}");
-            return response()->json(['status' => 'validation_failed']);
+    /**
+     * Verify a callback with the gateway and activate the subscription once.
+     * Shared by the redirect and the IPN, which usually arrive together.
+     *
+     * @return 'ok'|'ignored'|'validation_failed'
+     */
+    protected function settleGatewayPayment(Request $request, string $tranId): string
+    {
+        $pending = cache()->get("subscription_payment:{$tranId}");
+
+        if (!$pending) {
+            // Already settled by the other callback?
+            return $tranId !== '' && Subscription::withoutGlobalScopes()->where('transaction_id', $tranId)->exists()
+                ? 'ok'
+                : 'ignored';
         }
 
-        // Check if subscription already created (race condition with redirect callback)
-        $existing = Subscription::withoutGlobalScopes()
-            ->where('transaction_id', $tranId)
-            ->where('status', 'active')
-            ->exists();
-
-        if ($existing) {
-            Log::info("IPN: Subscription already active for transaction {$tranId}");
-            return response()->json(['status' => 'already_processed']);
+        if (!(new SslCommerzService())->validatePayment($request->all(), $tranId, $pending['amount'] ?? null)) {
+            return 'validation_failed';
         }
 
-        $this->activateSubscription(
-            $subscriptionData,
-            $request->input('card_type', 'online'),
+        $this->subscriptionService->activateFromGatewayPayment(
             $tranId,
-            $request->input('val_id')
+            $pending,
+            (string) $request->input('card_type', 'online'),
+            $request->input('val_id'),
+            'Self-service onboarding subscription',
         );
 
-        cache()->forget("subscription_payment:{$tranId}");
-
-        return response()->json(['status' => 'ok']);
+        return 'ok';
     }
 
     /**
@@ -281,28 +288,22 @@ class OnboardingController extends BaseApiController
      */
     protected function activateSubscription(array $data, string $paymentMethod, string $tranId, ?string $valId = null): Subscription
     {
-        // Expire any existing active subscriptions
-        Subscription::withoutGlobalScopes()
-            ->where('tenant_id', $data['tenant_id'])
-            ->where('status', 'active')
-            ->update(['status' => 'expired']);
+        $tenant = Tenant::findOrFail($data['tenant_id']);
+        $plan = SubscriptionPlan::findOrFail($data['plan_id']);
 
-        $subscription = Subscription::withoutGlobalScopes()->create([
-            'tenant_id' => $data['tenant_id'],
-            'plan_id' => $data['plan_id'],
-            'plan_type' => $data['plan_type'],
-            'amount' => $data['amount'],
-            'payment_method' => $paymentMethod,
-            'payment_ref' => $valId,
-            'transaction_id' => $tranId,
-            'starts_at' => now(),
-            'expires_at' => now()->addDays($data['duration_days']),
-            'status' => 'active',
-            'notes' => 'Self-service onboarding subscription',
-        ]);
-
-        // Activate the tenant
-        Tenant::where('id', $data['tenant_id'])->update(['is_active' => true]);
+        $subscription = $this->subscriptionService->createSubscription(
+            tenant: $tenant,
+            plan: $plan,
+            paymentData: [
+                'amount' => $data['amount'],
+                'payment_method' => $paymentMethod,
+                'payment_ref' => $valId,
+                'transaction_id' => $tranId,
+                'notes' => 'Self-service onboarding subscription',
+            ],
+            isTrial: false,
+            initiatedBy: 'tenant'
+        );
 
         Log::info("Subscription activated for tenant {$data['tenant_id']} via onboarding. Transaction: {$tranId}");
 
@@ -317,7 +318,7 @@ class OnboardingController extends BaseApiController
         $subscription = $this->activateSubscription([
             'tenant_id' => $tenant->id,
             'plan_id' => $plan->id,
-            'plan_type' => $plan->slug,
+            'plan_type' => $plan->subscriptionType(),
             'amount' => $plan->price,
             'duration_days' => $plan->duration_days,
         ], $method, $tranId);
@@ -334,7 +335,8 @@ class OnboardingController extends BaseApiController
      */
     public function status(): JsonResponse
     {
-        $user = auth()->user();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
 
         $status = [
             'has_account' => true,
@@ -349,6 +351,9 @@ class OnboardingController extends BaseApiController
             $status['restaurant'] = $tenant;
             $status['has_subscription'] = $tenant?->hasActiveSubscription() ?? false;
             $status['is_active'] = $tenant?->is_active ?? false;
+            $status['is_on_trial'] = $tenant?->isOnTrial() ?? false;
+            $status['trial_days_remaining'] = $tenant?->trialDaysRemaining() ?? 0;
+            $status['trial_ends_at'] = $tenant?->trial_ends_at;
 
             if ($status['has_subscription']) {
                 $status['current_step'] = 'complete';

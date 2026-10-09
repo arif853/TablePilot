@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import { ModuleGate } from './components/ModuleGate';
+import { UpgradePrompt } from './components/UpgradePrompt';
 
 // Layouts
 const DashboardLayout = lazy(() => import('./layouts/DashboardLayout'));
@@ -10,6 +12,9 @@ const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'));
 // Auth Pages
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const OtpVerificationPage = lazy(() => import('./pages/auth/OtpVerificationPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 
 // Dashboard Pages
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -22,6 +27,7 @@ const ReportsPage = lazy(() => import('./pages/dashboard/ReportsPage'));
 const SettlementsPage = lazy(() => import('./pages/dashboard/SettlementsPage'));
 const UsersPage = lazy(() => import('./pages/dashboard/UsersPage'));
 const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
+const SubscriptionRenewPage = lazy(() => import('./pages/dashboard/SubscriptionRenewPage'));
 
 // POS
 const POSPage = lazy(() => import('./pages/dashboard/POSPage'));
@@ -44,11 +50,30 @@ const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminTenantDetailPage = lazy(() => import('./pages/admin/AdminTenantDetailPage'));
 const AdminPlansPage = lazy(() => import('./pages/admin/AdminPlansPage'));
+const AdminTenantApplicationsPage = lazy(() => import('./pages/admin/AdminTenantApplicationsPage'));
 const AdminAnnouncementsPage = lazy(() => import('./pages/admin/AdminAnnouncementsPage'));
 const AdminSystemPage = lazy(() => import('./pages/admin/AdminSystemPage'));
 const AdminAuditLogPage = lazy(() => import('./pages/admin/AdminAuditLogPage'));
 const AdminEnquiriesPage = lazy(() => import('./pages/admin/AdminEnquiriesPage'));
 const AdminFinancialPage = lazy(() => import('./pages/admin/AdminFinancialPage'));
+const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage'));
+const ProfilePage = lazy(() => import('./pages/dashboard/ProfilePage'));
+
+function getDefaultDashboardPath(role) {
+    if (role === 'super_admin') return '/dashboard/admin';
+    if (role === 'kitchen') return '/kitchen';
+    return '/dashboard';
+}
+
+function DashboardIndexRoute() {
+    const { user } = useAuthStore();
+
+    if (user?.role === 'super_admin' || user?.role === 'kitchen') {
+        return <Navigate to={getDefaultDashboardPath(user.role)} replace />;
+    }
+
+    return <DashboardPage />;
+}
 
 function ProtectedRoute({ children, roles }) {
     const { user, token } = useAuthStore();
@@ -58,7 +83,7 @@ function ProtectedRoute({ children, roles }) {
     }
 
     if (roles && !roles.includes(user.role)) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to={getDefaultDashboardPath(user.role)} replace />;
     }
 
     return children;
@@ -71,6 +96,9 @@ export default function App() {
                 {/* Auth Routes */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/verify-email" element={<OtpVerificationPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                 {/* Dashboard Routes */}
                 <Route
@@ -81,19 +109,51 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 >
-                    <Route index element={<DashboardPage />} />
-                    <Route path="menu" element={<MenuItemsPage />} />
-                    <Route path="categories" element={<CategoriesPage />} />
-                    <Route path="tables" element={<TablesPage />} />
-                    <Route path="orders" element={<OrdersPage />} />
-                    <Route path="vouchers" element={<VouchersPage />} />
-                    <Route path="reports" element={<ReportsPage />} />
-                    <Route path="settlements" element={<SettlementsPage />} />
-                    <Route path="users" element={<UsersPage />} />
-                    <Route path="settings" element={<SettingsPage />} />
+                    <Route index element={<DashboardIndexRoute />} />
+                    <Route path="menu" element={<ProtectedRoute roles={['restaurant_admin']}><MenuItemsPage /></ProtectedRoute>} />
+                    <Route path="categories" element={<ProtectedRoute roles={['restaurant_admin']}><CategoriesPage /></ProtectedRoute>} />
+                    <Route path="tables" element={<ProtectedRoute roles={['restaurant_admin', 'staff']}><TablesPage /></ProtectedRoute>} />
+                    <Route path="orders" element={<ProtectedRoute roles={['restaurant_admin', 'staff']}><OrdersPage /></ProtectedRoute>} />
+                    <Route
+                        path="vouchers"
+                        element={
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="voucher_system" fallback={<UpgradePrompt module="voucher_system" />} loading={<LoadingSpinner />}>
+                                <VouchersPage />
+                            </ModuleGate></ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="reports"
+                        element={
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="reports_analytics" fallback={<UpgradePrompt module="reports_analytics" />} loading={<LoadingSpinner />}>
+                                <ReportsPage />
+                            </ModuleGate></ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="settlements"
+                        element={
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="settlement_management" fallback={<UpgradePrompt module="settlement_management" />} loading={<LoadingSpinner />}>
+                                <SettlementsPage />
+                            </ModuleGate></ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="users"
+                        element={
+                            <ProtectedRoute roles={['restaurant_admin']}><ModuleGate module="user_management" fallback={<UpgradePrompt module="user_management" />} loading={<LoadingSpinner />}>
+                                <UsersPage />
+                            </ModuleGate></ProtectedRoute>
+                        }
+                    />
+                    <Route path="settings" element={<ProtectedRoute roles={['restaurant_admin']}><SettingsPage /></ProtectedRoute>} />
+                    <Route path="subscription/renew" element={<SubscriptionRenewPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
                     <Route path="pos" element={
                         <ProtectedRoute roles={['restaurant_admin', 'staff']}>
-                            <POSPage />
+                            <ModuleGate module="pos" fallback={<UpgradePrompt module="pos" />} loading={<LoadingSpinner />}>
+                                <POSPage />
+                            </ModuleGate>
                         </ProtectedRoute>
                     } />
                     {/* Admin routes */}
@@ -107,9 +167,19 @@ export default function App() {
                             <TenantsPage />
                         </ProtectedRoute>
                     } />
+                    <Route path="admin/applications" element={
+                        <ProtectedRoute roles={['super_admin']}>
+                            <AdminTenantApplicationsPage />
+                        </ProtectedRoute>
+                    } />
                     <Route path="admin/tenants/:id" element={
                         <ProtectedRoute roles={['super_admin']}>
                             <AdminTenantDetailPage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="admin/users" element={
+                        <ProtectedRoute roles={['super_admin']}>
+                            <AdminUsersPage />
                         </ProtectedRoute>
                     } />
                     <Route path="admin/subscriptions" element={
@@ -159,7 +229,9 @@ export default function App() {
                     path="/kitchen"
                     element={
                         <ProtectedRoute roles={['kitchen', 'restaurant_admin', 'super_admin']}>
-                            <KitchenDisplayPage />
+                            <ModuleGate module="kitchen_display" fallback={<UpgradePrompt module="kitchen_display" />} loading={<LoadingSpinner />}>
+                                <KitchenDisplayPage />
+                            </ModuleGate>
                         </ProtectedRoute>
                     }
                 />

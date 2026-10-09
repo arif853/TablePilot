@@ -1,0 +1,28 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "url": "http://192.168.0.165:3000"
+    },
+    {
+      "name": "frontend-local",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "127.0.0.1", "--port", "5180", "--strictPort"],
+      "port": 5180
+    },
+    {
+      "name": "frontend-reports",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "127.0.0.1", "--port", "5181", "--strictPort"],
+      "port": 5181
+    },
+    {
+      "name": "backend",
+      "url": "http://backend.test"
+    }
+  ]
+}

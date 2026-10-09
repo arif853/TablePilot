@@ -45,7 +45,7 @@ export default function CategoriesPage() {
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Categories</h2>
+                <h2 className="page-title">Categories</h2>
                 <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary text-sm sm:text-base">+ Add Category</button>
             </div>
 
@@ -58,7 +58,7 @@ export default function CategoriesPage() {
                         </div>
                         {cat.description && <p className="text-sm text-gray-400 mt-1">{cat.description}</p>}
                         <div className="flex gap-3 mt-4 pt-3 border-t">
-                            <button onClick={() => { setEditing(cat); setShowForm(true); }} className="text-sm text-blue-600">Edit</button>
+                            <button onClick={() => { setEditing(cat); setShowForm(true); }} className="text-sm text-brand-700">Edit</button>
                             <button onClick={() => { if (confirm('Delete?')) deleteMutation.mutate(cat.id); }} className="text-sm text-red-600">Delete</button>
                         </div>
                     </div>

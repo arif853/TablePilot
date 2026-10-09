@@ -1,85 +1,78 @@
 <?php
 
 use App\Models\User;
+use App\Models\Tenant;
+use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
 
-test('profile page is displayed', function () {
-    $user = User::factory()->create();
+function setupProfileUser(): array
+{
+    $plan = SubscriptionPlan::factory()->create();
+    $tenant = Tenant::factory()->create();
+    Subscription::factory()->for($tenant)->for($plan, 'plan')->create();
+    $user = User::factory()->restaurantAdmin()->create(['tenant_id' => $tenant->id]);
+    $token = auth('api')->login($user);
 
-    $response = $this
-        ->actingAs($user)
-        ->get('/profile');
+    return [$user, $token, $tenant];
+}
+
+test('user can view their profile', function () {
+    [$user, $token] = setupProfileUser();
+
+    $response = $this->getJson('/api/profile', [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertOk()
+        ->assertJsonFragment(['email' => $user->email]);
+});
+
+test('user can update their profile', function () {
+    [$user, $token] = setupProfileUser();
+
+    $response = $this->putJson('/api/profile', [
+        'name' => 'Updated Name',
+        'phone' => '01700000000',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertOk();
+
+    $user->refresh();
+    expect($user->name)->toBe('Updated Name');
+});
+
+test('user can change their password', function () {
+    [$user, $token] = setupProfileUser();
+
+    $response = $this->putJson('/api/profile/password', [
+        'current_password' => 'password',
+        'password' => 'newSecurePass123!',
+        'password_confirmation' => 'newSecurePass123!',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
 
     $response->assertOk();
 });
 
-test('profile information can be updated', function () {
-    $user = User::factory()->create();
+test('wrong current password is rejected', function () {
+    [$user, $token] = setupProfileUser();
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+    $response = $this->putJson('/api/profile/password', [
+        'current_password' => 'wrong-password',
+        'password' => 'newSecurePass123!',
+        'password_confirmation' => 'newSecurePass123!',
+    ], [
+        'Authorization' => "Bearer {$token}",
+    ]);
 
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
-
-    $user->refresh();
-
-    $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
+    $response->assertStatus(422);
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
-    $user = User::factory()->create();
+test('unauthenticated user cannot access profile', function () {
+    $response = $this->getJson('/api/profile');
 
-    $response = $this
-        ->actingAs($user)
-        ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => $user->email,
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->refresh()->email_verified_at);
-});
-
-test('user can delete their account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->delete('/profile', [
-            'password' => 'password',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/');
-
-    $this->assertGuest();
-    $this->assertNull($user->fresh());
-});
-
-test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->from('/profile')
-        ->delete('/profile', [
-            'password' => 'wrong-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrorsIn('userDeletion', 'password')
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->fresh());
+    $response->assertUnauthorized();
 });

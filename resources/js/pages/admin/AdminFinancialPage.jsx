@@ -98,10 +98,10 @@ export default function AdminFinancialPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-gray-500">Commission Earned</p>
-                            <p className="text-2xl font-bold text-blue-600">{formatCurrency(stats?.total_commission)}</p>
+                            <p className="text-2xl font-bold text-brand-700">{formatCurrency(stats?.total_commission)}</p>
                         </div>
-                        <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                            <HiOutlineReceiptTax className="w-5 h-5 text-blue-600" />
+                        <div className="w-10 h-10 bg-brand-50 rounded-full flex items-center justify-center">
+                            <HiOutlineReceiptTax className="w-5 h-5 text-brand-700" />
                         </div>
                     </div>
                 </div>
@@ -246,7 +246,7 @@ export default function AdminFinancialPage() {
                                     <td className="px-4 py-3 text-sm text-right text-gray-900">
                                         {formatCurrency(settlement.gross_revenue)}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-right text-blue-600">
+                                    <td className="px-4 py-3 text-sm text-right text-brand-700">
                                         {formatCurrency(settlement.commission_amount)}
                                         {settlement.commission_rate && (
                                             <span className="text-xs text-gray-400 ml-1">
@@ -370,7 +370,7 @@ export default function AdminFinancialPage() {
                                     <span className="text-gray-600">Gross Revenue</span>
                                     <span className="text-gray-900">{formatCurrency(selectedSettlement.gross_revenue)}</span>
                                 </div>
-                                <div className="flex justify-between text-blue-600">
+                                <div className="flex justify-between text-brand-700">
                                     <span>Commission ({selectedSettlement.commission_rate}%)</span>
                                     <span>- {formatCurrency(selectedSettlement.commission_amount)}</span>
                                 </div>

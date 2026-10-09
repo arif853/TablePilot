@@ -1,4 +1,4 @@
-# Restaurant SaaS Platform - Documentation
+# TablePilot - Documentation
 
 A multi-tenant SaaS platform for restaurant management with order tracking, subscription billing, and real-time kitchen display.
 
@@ -749,7 +749,7 @@ export const adminAPI = {
 
 ```env
 # Application
-APP_NAME="Restaurant SaaS"
+APP_NAME="TablePilot"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com
@@ -909,6 +909,43 @@ chown -R www-data:www-data storage bootstrap/cache
 ---
 
 ## Troubleshooting
+
+## Subscription Module Redesign (2026-04)
+
+### Access States
+
+- `active`: subscription valid
+- `trial`: trial subscription active (`is_trial = true`)
+- `grace`: subscription expired but still within grace window (`grace_ends_at`)
+- `expired`: subscription and grace are both ended
+- `none`: no subscription exists
+
+`EnsureActiveSubscription` now relies on `SubscriptionService::getAccessStatus()` and sets `X-Subscription-Warning: grace_period` while in grace state.
+
+### New/Updated API Endpoints
+
+- `GET /api/subscription/current`
+- `GET /api/subscription/plans`
+- `POST /api/subscription/initiate`
+- `POST /api/subscription/verify`
+- `PATCH /api/admin/plans/{id}/toggle`
+- `POST /api/payment/sslcommerz/callback`
+- `POST /api/payment/sslcommerz/ipn` (also handles subscription transaction IDs)
+- `POST /api/payment/bkash/callback`
+
+All routes are also mounted under `/api/v1/*`.
+
+### Database Changes
+
+- `subscriptions` now includes `is_trial`, `grace_ends_at`, `initiated_by`
+- `status` includes `grace`
+- `plan_type` remains for backward compatibility
+- `subscription_plans` now supports soft delete (`deleted_at`)
+- Backfill migration maps `plan_type -> plan_id` and creates trial subscriptions from `tenants.trial_ends_at`
+
+### Source of Truth
+
+`subscription_plans` table is the source of truth for plans. `config/saas.php` hardcoded plan entries are retained only as legacy fallback.
 
 ### Common Issues
 

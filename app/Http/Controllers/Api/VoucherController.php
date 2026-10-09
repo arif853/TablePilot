@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Http\Requests\StoreVoucherRequest;
 use App\Models\Voucher;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,8 @@ class VoucherController extends BaseApiController
 
         $voucher = Voucher::create($data);
 
+        AuditLogger::logCreated($voucher);
+
         return $this->created($voucher, 'Voucher created');
     }
 
@@ -62,7 +65,10 @@ class VoucherController extends BaseApiController
             return $this->notFound('Voucher not found');
         }
 
+        $original = $voucher->toArray();
         $voucher->update($request->validated());
+
+        AuditLogger::logUpdated($voucher, $original);
 
         return $this->success($voucher->fresh(), 'Voucher updated');
     }
@@ -74,6 +80,8 @@ class VoucherController extends BaseApiController
         if (!$voucher) {
             return $this->notFound('Voucher not found');
         }
+
+        AuditLogger::logDeleted($voucher);
 
         $voucher->delete();
 

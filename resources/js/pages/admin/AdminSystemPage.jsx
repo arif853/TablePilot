@@ -8,6 +8,7 @@ import {
     HiOutlineDatabase,
     HiOutlineColorSwatch,
     HiOutlineCollection,
+    HiOutlineLink,
     HiOutlineRefresh,
     HiOutlineTrash,
     HiOutlineCheckCircle,
@@ -31,6 +32,7 @@ const StatusIcon = ({ status }) => {
 export default function AdminSystemPage() {
     const queryClient = useQueryClient();
     const [logLines, setLogLines] = useState(100);
+    const [storageLinkStatus, setStorageLinkStatus] = useState(null);
 
     const { data: health, isLoading: healthLoading, refetch: refetchHealth } = useQuery({
         queryKey: ['admin-system-health'],
@@ -70,6 +72,40 @@ export default function AdminSystemPage() {
             refetchQueue();
         },
         onError: (err) => toast.error(err.response?.data?.message || 'Failed to retry jobs'),
+    });
+
+    const storageLinkMutation = useMutation({
+        mutationFn: () => adminAPI.system.storageLink(),
+        onSuccess: (response) => {
+            const payload = response?.data?.data || {};
+
+            if (payload.already_exists) {
+                setStorageLinkStatus({
+                    type: 'exists',
+                    label: 'Link already exists',
+                });
+            } else if (payload.linked) {
+                setStorageLinkStatus({
+                    type: 'linked',
+                    label: 'Storage linked',
+                });
+            } else {
+                setStorageLinkStatus({
+                    type: 'unknown',
+                    label: 'Completed',
+                });
+            }
+
+            toast.success(response.data.message || 'Storage link completed');
+            refetchHealth();
+        },
+        onError: (err) => {
+            setStorageLinkStatus({
+                type: 'failed',
+                label: 'Link failed',
+            });
+            toast.error(err.response?.data?.message || 'Failed to create storage link');
+        },
     });
 
     const getStatusColor = (status) => {
@@ -153,7 +189,7 @@ export default function AdminSystemPage() {
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm text-gray-500">Pending Jobs</span>
-                            <span className="text-2xl font-bold text-blue-600">
+                            <span className="text-2xl font-bold text-brand-700">
                                 {queueStats?.pending?.total || 0}
                             </span>
                         </div>
@@ -253,6 +289,36 @@ export default function AdminSystemPage() {
                         Views
                     </button>
                 </div>
+            </div>
+
+            {/* Storage Management */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-900">Storage Management</h3>
+                    {storageLinkStatus && (
+                        <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                storageLinkStatus.type === 'linked'
+                                    ? 'text-green-700 bg-green-100'
+                                    : storageLinkStatus.type === 'exists'
+                                        ? 'text-blue-700 bg-blue-100'
+                                        : storageLinkStatus.type === 'failed'
+                                            ? 'text-red-700 bg-red-100'
+                                            : 'text-gray-700 bg-gray-100'
+                            }`}
+                        >
+                            {storageLinkStatus.label}
+                        </span>
+                    )}
+                </div>
+                <button
+                    onClick={() => storageLinkMutation.mutate()}
+                    disabled={storageLinkMutation.isPending}
+                    className="btn-secondary flex items-center justify-center gap-2 py-3 px-4"
+                >
+                    <HiOutlineLink className="w-5 h-5" />
+                    {storageLinkMutation.isPending ? 'Linking Storage...' : 'Run Storage Link'}
+                </button>
             </div>
 
             {/* Log Viewer */}

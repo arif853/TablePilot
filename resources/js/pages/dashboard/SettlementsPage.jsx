@@ -14,14 +14,14 @@ export default function SettlementsPage() {
 
     return (
         <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6">Financial Settlements</h2>
+            <h2 className="page-title mb-6">Financial Settlements</h2>
 
             {data?.summary && (
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 mb-6">
                     <div className="card"><p className="text-xs sm:text-sm text-gray-500">Total Sold</p><p className="text-lg sm:text-2xl font-bold">৳{data.summary.total_sold}</p></div>
                     <div className="card"><p className="text-xs sm:text-sm text-gray-500">Commission</p><p className="text-lg sm:text-2xl font-bold text-red-600">৳{data.summary.total_commission}</p></div>
                     <div className="card"><p className="text-xs sm:text-sm text-gray-500">Total Paid</p><p className="text-lg sm:text-2xl font-bold text-green-600">৳{data.summary.total_paid}</p></div>
-                    <div className="card"><p className="text-xs sm:text-sm text-gray-500">Payable Balance</p><p className="text-lg sm:text-2xl font-bold text-blue-600">৳{data.summary.total_payable}</p></div>
+                    <div className="card"><p className="text-xs sm:text-sm text-gray-500">Payable Balance</p><p className="text-lg sm:text-2xl font-bold text-brand-700">৳{data.summary.total_payable}</p></div>
                 </div>
             )}
 
@@ -29,7 +29,7 @@ export default function SettlementsPage() {
                 <h3 className="font-semibold mb-4">Settlement History</h3>
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="data-table">
                         <thead>
                             <tr className="text-left border-b">
                                 <th className="pb-3">Period</th><th className="pb-3">Sold</th><th className="pb-3">Commission</th><th className="pb-3">Paid</th><th className="pb-3">Payable</th><th className="pb-3">Status</th>

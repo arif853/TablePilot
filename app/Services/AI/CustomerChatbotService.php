@@ -317,35 +317,28 @@ class CustomerChatbotService
     }
 
     /**
-     * Extract order number from message.
+     * Extract a full order number (e.g. ORD-20261008-12-0003) from a message.
+     * Partial numbers are not accepted: they would let anyone enumerate orders.
      */
     protected function extractOrderNumber(string $message): ?string
     {
-        // Match patterns like ORD-12345, #12345, order 12345
-        if (preg_match('/(?:ORD-?|#|order\s*)(\d{4,})/i', $message, $matches)) {
-            return $matches[1];
-        }
-
-        // Try to find just a number
-        if (preg_match('/\b(\d{4,})\b/', $message, $matches)) {
-            return $matches[1];
+        if (preg_match('/\bORD-\d{8}(?:-\d+)?-\d{4,}\b/i', $message, $matches)) {
+            return strtoupper($matches[0]);
         }
 
         return null;
     }
 
     /**
-     * Get order status.
+     * Get order status. Deliberately minimal: the chat is public and order
+     * numbers are guessable, so only the status is shared (no items, totals
+     * or customer details, which require the order's access token).
      */
     protected function getOrderStatus(string $orderNumber): string
     {
         $order = Order::withoutGlobalScopes()
             ->where('tenant_id', $this->tenantId)
-            ->where(function ($q) use ($orderNumber) {
-                $q->where('order_number', 'like', "%{$orderNumber}%")
-                    ->orWhere('id', $orderNumber);
-            })
-            ->with('items.menuItem')
+            ->where('order_number', $orderNumber)
             ->first();
 
         if (!$order) {
@@ -353,7 +346,7 @@ class CustomerChatbotService
         }
 
         $statusLabels = [
-            'pending' => 'Pending confirmation',
+            'placed' => 'Received, waiting for confirmation',
             'confirmed' => 'Confirmed by kitchen',
             'preparing' => 'Being prepared',
             'ready' => 'Ready for pickup/serving',
@@ -362,19 +355,9 @@ class CustomerChatbotService
             'cancelled' => 'Cancelled',
         ];
 
-        $items = $order->items->map(function ($item) {
-            return "- {$item->qty}x {$item->menuItem->name}";
-        })->implode("\n");
-
         $status = $statusLabels[$order->status] ?? $order->status;
 
-        return <<<INFO
-            Order: {$order->order_number}
-            Status: {$status}
-            Total: ৳{$order->grand_total}
-            Items:
-            {$items}
-            INFO;
+        return "Order: {$order->order_number}\nStatus: {$status}";
     }
 
     /**

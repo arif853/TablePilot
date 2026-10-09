@@ -202,6 +202,7 @@ class RecommendationService
         }
 
         return MenuItem::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
             ->whereIn('id', $complementary->keys())
             ->where('is_active', true)
             ->get()
@@ -216,6 +217,7 @@ class RecommendationService
     {
         // Get cart item names
         $cartItemDetails = MenuItem::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenantId)
             ->whereIn('id', collect($cartItems)->pluck('menu_item_id')->filter())
             ->get(['id', 'name', 'category_id'])
             ->toArray();

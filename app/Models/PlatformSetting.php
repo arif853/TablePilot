@@ -57,14 +57,14 @@ class PlatformSetting extends Model
             $settings = static::where('group', 'branding')->pluck('value', 'key')->toArray();
 
             return [
-                'platform_name'     => $settings['platform_name'] ?? 'RestaurantSaaS',
+                'platform_name'     => $settings['platform_name'] ?? 'TablePilot',
                 'platform_logo'     => $settings['platform_logo'] ?? null,
                 'platform_logo_dark'=> $settings['platform_logo_dark'] ?? null,
                 'platform_favicon'  => $settings['platform_favicon'] ?? null,
-                'primary_color'     => $settings['primary_color'] ?? '#3B82F6',
-                'secondary_color'   => $settings['secondary_color'] ?? '#1E40AF',
+                'primary_color'     => $settings['primary_color'] ?? '#ED802A',
+                'secondary_color'   => $settings['secondary_color'] ?? '#B8560E',
                 'footer_text'       => $settings['footer_text'] ?? null,
-                'powered_by_text'   => $settings['powered_by_text'] ?? 'Powered by RestaurantSaaS',
+                'powered_by_text'   => $settings['powered_by_text'] ?? 'Powered by TablePilot',
                 'powered_by_url'    => $settings['powered_by_url'] ?? null,
             ];
         });

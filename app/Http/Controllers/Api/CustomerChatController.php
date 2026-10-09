@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Services\AI\CustomerChatbotService;
+use App\Services\ModulePermissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CustomerChatController extends Controller
 {
     protected CustomerChatbotService $chatbot;
+    protected ModulePermissionService $modulePermissionService;
 
-    public function __construct(CustomerChatbotService $chatbot)
+    public function __construct(CustomerChatbotService $chatbot, ModulePermissionService $modulePermissionService)
     {
         $this->chatbot = $chatbot;
+        $this->modulePermissionService = $modulePermissionService;
     }
 
     /**
@@ -35,6 +38,13 @@ class CustomerChatController extends Controller
                 'success' => false,
                 'error' => 'Restaurant not found',
             ], 404);
+        }
+
+        if (!$this->modulePermissionService->tenantHasModule($tenantModel, 'ai_customer_chatbot')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This feature is not available for this restaurant.',
+            ], 403);
         }
 
         $result = $this->chatbot
@@ -63,6 +73,13 @@ class CustomerChatController extends Controller
                 'success' => false,
                 'error' => 'Restaurant not found',
             ], 404);
+        }
+
+        if (!$this->modulePermissionService->tenantHasModule($tenantModel, 'ai_customer_chatbot')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'This feature is not available for this restaurant.',
+            ], 403);
         }
 
         return response()->json([

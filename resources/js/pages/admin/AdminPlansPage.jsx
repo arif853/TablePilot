@@ -9,11 +9,18 @@ import { HiOutlineTicket, HiOutlineTrash, HiOutlinePencil } from 'react-icons/hi
 export default function AdminPlansPage() {
     const queryClient = useQueryClient();
     const [showModal, setShowModal] = useState(false);
+    const [showModuleModal, setShowModuleModal] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
+    const [modulePlan, setModulePlan] = useState(null);
+    const [moduleGroups, setModuleGroups] = useState({});
+    const [selectedModuleKeys, setSelectedModuleKeys] = useState([]);
+    const [moduleLoading, setModuleLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         slug: '',
         price: '',
+        annual_price: '',
+        trial_days: 14,
         duration_days: 30,
         features: [],
         max_users: 5,
@@ -56,6 +63,26 @@ export default function AdminPlansPage() {
         onError: (err) => toast.error(err.response?.data?.message || 'Failed to delete plan'),
     });
 
+    const toggleMutation = useMutation({
+        mutationFn: (id) => adminAPI.plans.toggle(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['admin-plans']);
+            toast.success('Plan status updated');
+        },
+        onError: (err) => toast.error(err.response?.data?.message || 'Failed to update plan status'),
+    });
+
+    const syncModulesMutation = useMutation({
+        mutationFn: ({ planId, moduleKeys }) => adminAPI.plans.syncModules(planId, moduleKeys),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['admin-plans']);
+            setShowModuleModal(false);
+            setModulePlan(null);
+            toast.success('Plan modules updated successfully');
+        },
+        onError: (err) => toast.error(err.response?.data?.message || 'Failed to sync plan modules'),
+    });
+
     const closeModal = () => {
         setShowModal(false);
         setEditingPlan(null);
@@ -63,6 +90,8 @@ export default function AdminPlansPage() {
             name: '',
             slug: '',
             price: '',
+            annual_price: '',
+            trial_days: 14,
             duration_days: 30,
             features: [],
             max_users: 5,
@@ -78,6 +107,8 @@ export default function AdminPlansPage() {
             name: plan.name,
             slug: plan.slug,
             price: plan.price,
+            annual_price: plan.annual_price || '',
+            trial_days: plan.trial_days ?? 0,
             duration_days: plan.duration_days,
             features: plan.features || [],
             max_users: plan.max_users,
@@ -92,6 +123,8 @@ export default function AdminPlansPage() {
         const data = {
             ...formData,
             price: parseFloat(formData.price),
+            annual_price: formData.annual_price === '' ? null : parseFloat(formData.annual_price),
+            trial_days: parseInt(formData.trial_days) || 0,
             duration_days: parseInt(formData.duration_days),
             max_users: parseInt(formData.max_users),
             sort_order: parseInt(formData.sort_order),
@@ -115,6 +148,57 @@ export default function AdminPlansPage() {
         setFormData({
             ...formData,
             features: formData.features.filter((_, i) => i !== index),
+        });
+    };
+
+    const openModuleManager = async (plan) => {
+        try {
+            setModuleLoading(true);
+            setModulePlan(plan);
+
+            const res = await adminAPI.plans.modules(plan.id);
+            const groups = res.data?.data?.modules ?? {};
+
+            setModuleGroups(groups);
+
+            const included = [];
+            Object.values(groups).forEach((items) => {
+                (items || []).forEach((item) => {
+                    if (item.included) {
+                        included.push(item.key);
+                    }
+                });
+            });
+
+            setSelectedModuleKeys(included);
+            setShowModuleModal(true);
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Failed to load plan modules');
+        } finally {
+            setModuleLoading(false);
+        }
+    };
+
+    const toggleModuleSelection = (moduleKey, isCore) => {
+        if (isCore) {
+            return;
+        }
+
+        setSelectedModuleKeys((prev) => (
+            prev.includes(moduleKey)
+                ? prev.filter((k) => k !== moduleKey)
+                : [...prev, moduleKey]
+        ));
+    };
+
+    const saveModuleConfiguration = () => {
+        if (!modulePlan) {
+            return;
+        }
+
+        syncModulesMutation.mutate({
+            planId: modulePlan.id,
+            moduleKeys: selectedModuleKeys,
         });
     };
 
@@ -147,14 +231,14 @@ export default function AdminPlansPage() {
                     <div
                         key={plan.id}
                         className={`bg-white rounded-xl p-6 shadow-sm border-2 transition-all ${
-                            plan.is_active ? 'border-blue-200' : 'border-gray-200 opacity-60'
+                            plan.is_active ? 'border-brand-200' : 'border-gray-200 opacity-60'
                         }`}
                     >
                         {/* Header */}
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <HiOutlineTicket className="w-5 h-5 text-blue-600" />
+                                    <HiOutlineTicket className="w-5 h-5 text-brand-700" />
                                     <h3 className="font-bold text-lg text-gray-900">{plan.name}</h3>
                                 </div>
                                 <p className="text-xs text-gray-400 font-mono">{plan.slug}</p>
@@ -174,6 +258,16 @@ export default function AdminPlansPage() {
                             <p className="text-sm text-gray-500">
                                 for {plan.duration_days} days
                             </p>
+                            {plan.annual_price && (
+                                <p className="text-sm text-brand-700 mt-1">
+                                    Annual: {formatCurrency(plan.annual_price)}
+                                </p>
+                            )}
+                            {plan.trial_days > 0 && (
+                                <p className="text-sm text-green-600 mt-1 font-medium">
+                                    {plan.trial_days}-day free trial
+                                </p>
+                            )}
                         </div>
 
                         {/* Features */}
@@ -198,16 +292,32 @@ export default function AdminPlansPage() {
                                 </span>{' '}
                                 active subscriptions
                             </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                                <span className="font-semibold text-gray-900">{plan.module_count ?? '—'}</span> modules included
+                            </p>
                         </div>
 
                         {/* Actions */}
                         <div className="flex gap-2">
+                            <button
+                                onClick={() => toggleMutation.mutate(plan.id)}
+                                className="btn-secondary text-sm"
+                            >
+                                {plan.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
                             <button
                                 onClick={() => openEdit(plan)}
                                 className="flex-1 btn-secondary flex items-center justify-center gap-2 text-sm"
                             >
                                 <HiOutlinePencil className="w-4 h-4" />
                                 Edit
+                            </button>
+                            <button
+                                onClick={() => openModuleManager(plan)}
+                                className="btn-secondary text-sm"
+                                disabled={moduleLoading}
+                            >
+                                Modules
                             </button>
                             <button
                                 onClick={() => {
@@ -271,6 +381,21 @@ export default function AdminPlansPage() {
                             />
                         </div>
                         <div>
+                            <label className="label">Annual Price (BDT)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="input"
+                                value={formData.annual_price}
+                                onChange={(e) => setFormData({ ...formData, annual_price: e.target.value })}
+                                placeholder="Optional"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
                             <label className="label">Duration (Days)</label>
                             <input
                                 type="number"
@@ -281,9 +406,18 @@ export default function AdminPlansPage() {
                                 required
                             />
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="label">Free Trial Days</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="90"
+                                className="input"
+                                value={formData.trial_days}
+                                onChange={(e) => setFormData({ ...formData, trial_days: e.target.value })}
+                                placeholder="0 = no trial"
+                            />
+                        </div>
                         <div>
                             <label className="label">Max Users</label>
                             <input
@@ -327,7 +461,7 @@ export default function AdminPlansPage() {
                             {formData.features.map((feature, i) => (
                                 <span
                                     key={i}
-                                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-brand-50 text-brand-800 rounded-full text-sm"
                                 >
                                     {feature}
                                     <button
@@ -349,7 +483,7 @@ export default function AdminPlansPage() {
                             id="is_active"
                             checked={formData.is_active}
                             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded"
+                            className="w-4 h-4 text-brand-700 rounded"
                         />
                         <label htmlFor="is_active" className="text-sm text-gray-700">
                             Plan is active and visible to users
@@ -373,6 +507,55 @@ export default function AdminPlansPage() {
                         </button>
                     </div>
                 </form>
+            </Modal>
+
+            <Modal
+                isOpen={showModuleModal}
+                onClose={() => setShowModuleModal(false)}
+                title={`Plan Modules: ${modulePlan?.name || ''}`}
+                size="xl"
+            >
+                <div className="space-y-5">
+                    {Object.entries(moduleGroups).map(([group, modules]) => (
+                        <div key={group} className="border border-gray-200 rounded-xl p-4">
+                            <h4 className="font-semibold text-gray-900 capitalize mb-3">{group.replace('_', ' ')}</h4>
+                            <div className="space-y-2">
+                                {(modules || []).map((module) => {
+                                    const checked = selectedModuleKeys.includes(module.key) || module.is_core;
+
+                                    return (
+                                        <label key={module.key} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                disabled={module.is_core}
+                                                onChange={() => toggleModuleSelection(module.key, module.is_core)}
+                                                className="mt-1"
+                                            />
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-gray-900">{module.label}</span>
+                                                    {module.is_core && <span className="text-xs px-2 py-0.5 bg-brand-100 text-brand-800 rounded-full">Core</span>}
+                                                    {!module.is_active && <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">Platform Disabled</span>}
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-0.5">{module.description}</p>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+
+                    <div className="flex gap-3 pt-2">
+                        <button className="btn-primary" onClick={saveModuleConfiguration} disabled={syncModulesMutation.isPending}>
+                            {syncModulesMutation.isPending ? 'Saving...' : 'Save Module Configuration'}
+                        </button>
+                        <button className="btn-secondary" onClick={() => setShowModuleModal(false)}>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

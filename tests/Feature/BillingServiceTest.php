@@ -27,10 +27,10 @@ beforeEach(function () {
     ]);
 
     // Create subscription
-    Subscription::create([
+    Subscription::factory()->create([
         'tenant_id'  => $this->tenant->id,
-        'plan'       => 'monthly',
-        'price'      => 999,
+        'plan_type'  => 'monthly',
+        'amount'     => 999,
         'status'     => 'active',
         'starts_at'  => now()->subDays(5),
         'expires_at' => now()->addDays(25),
@@ -214,7 +214,7 @@ test('invoice endpoint returns vat compliant data', function () {
         ],
     );
 
-    $response = $this->getJson("/api/customer/order/{$order->order_number}/invoice");
+    $response = $this->getJson("/api/customer/order/{$order->order_number}/invoice?access_token={$order->public_access_token}");
 
     $response->assertStatus(200)
         ->assertJsonStructure([
@@ -226,4 +226,7 @@ test('invoice endpoint returns vat compliant data', function () {
                 'payment' => ['method', 'status'],
             ],
         ]);
+
+    $this->getJson("/api/customer/order/{$order->order_number}/invoice")
+        ->assertStatus(404);
 });

@@ -10,9 +10,11 @@ use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Models\Order;
 use App\Models\RestaurantTable;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Voucher;
 use App\Services\BillingService;
 use App\Services\SslCommerzService;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -93,7 +95,11 @@ class OrderController extends BaseApiController
             );
 
             // Broadcast new order event
-            broadcast(new NewOrderCreated($order))->toOthers();
+            try {
+                broadcast(new NewOrderCreated($order))->toOthers();
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             // If online payment, initiate SSLCommerz
             $paymentUrl = null;
@@ -132,6 +138,11 @@ class OrderController extends BaseApiController
                 $responseData['payment_url'] = $paymentUrl;
             }
 
+            if (!empty($order->public_access_token)) {
+                $responseData['access_token'] = $order->public_access_token;
+                $responseData['tracking_url'] = url('/order/' . $order->order_number . '?access_token=' . $order->public_access_token);
+            }
+
             return $this->created($responseData, 'Order placed successfully');
         } catch (\InvalidArgumentException $e) {
             return $this->error($e->getMessage(), 422);
@@ -160,22 +171,22 @@ class OrderController extends BaseApiController
         $oldStatus = $order->status;
         $newStatus = $request->status;
 
-        $order->update(['status' => $newStatus]);
-
-        // If completed and dine-in, free the table
-        if (in_array($newStatus, ['completed', 'cancelled']) && $order->table_id) {
-            $hasOtherActiveOrders = Order::where('table_id', $order->table_id)
-                ->where('id', '!=', $order->id)
-                ->active()
-                ->exists();
-
-            if (!$hasOtherActiveOrders) {
-                RestaurantTable::where('id', $order->table_id)
-                    ->update(['status' => 'available']);
-            }
+        if (!$order->canTransitionTo($newStatus)) {
+            return $this->error("Cannot change order from '{$oldStatus}' to '{$newStatus}'", 422);
         }
 
-        broadcast(new OrderStatusUpdated($order->fresh()))->toOthers();
+        $order->update(['status' => $newStatus]);
+
+        AuditLogger::logAction('order_status_updated', $order, [
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+        ]);
+
+        if (in_array($newStatus, ['completed', 'cancelled'], true)) {
+            $order->releaseResources(restoreVoucher: $newStatus === 'cancelled');
+        }
+
+        $this->broadcastStatus($order);
 
         return $this->success($order->fresh()->load(['items.menuItem', 'table']), 'Order status updated');
     }
@@ -188,48 +199,47 @@ class OrderController extends BaseApiController
             return $this->notFound('Order not found');
         }
 
-        if ($order->isCompleted()) {
-            return $this->error('Cannot cancel a completed order', 422);
+        if (!$order->canTransitionTo('cancelled')) {
+            return $this->error("Cannot cancel an order that is {$order->status}", 422);
         }
 
+        $previous = $order->status;
         $order->update(['status' => 'cancelled']);
 
-        // Free table if necessary
-        if ($order->table_id) {
-            $hasOtherActiveOrders = Order::where('table_id', $order->table_id)
-                ->where('id', '!=', $order->id)
-                ->active()
-                ->exists();
+        AuditLogger::logAction('order_cancelled', $order, [
+            'previous_status' => $previous,
+        ]);
 
-            if (!$hasOtherActiveOrders) {
-                RestaurantTable::where('id', $order->table_id)
-                    ->update(['status' => 'available']);
-            }
-        }
-
-        // Reverse voucher usage
-        if ($order->voucher_id) {
-            Voucher::where('id', $order->voucher_id)->decrement('used_count');
-        }
-
-        broadcast(new OrderStatusUpdated($order->fresh()))->toOthers();
+        $order->releaseResources(restoreVoucher: true);
+        $this->broadcastStatus($order);
 
         return $this->success($order->fresh(), 'Order cancelled');
+    }
+
+    private function broadcastStatus(Order $order): void
+    {
+        try {
+            broadcast(new OrderStatusUpdated($order->fresh()))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
      * Public endpoint: Get order status by order number (no auth)
      */
-    public function trackOrder(string $orderNumber): JsonResponse
+    public function trackOrder(Request $request, string $orderNumber): JsonResponse
     {
-        $order = Order::withoutGlobalScopes()
-            ->where('order_number', $orderNumber)
-            ->with(['items.menuItem', 'table', 'voucher'])
-            ->first();
+        $order = $this->resolveOrderForPublicOrTenant($request, $orderNumber);
 
         if (!$order) {
             return $this->notFound('Order not found');
         }
+
+        // Public branding only, so the tracking page can wear the restaurant's colours
+        $order->setRelation('restaurant', Tenant::withoutGlobalScopes()
+            ->select(['name', 'slug', 'logo', 'primary_color', 'secondary_color'])
+            ->find($order->tenant_id));
 
         return $this->success($order);
     }
@@ -237,25 +247,30 @@ class OrderController extends BaseApiController
     /**
      * Public endpoint: Get full VAT-compliant invoice data for an order
      */
-    public function invoice(string $orderNumber): JsonResponse
+    public function invoice(Request $request, string $orderNumber): JsonResponse
     {
-        $order = Order::withoutGlobalScopes()
-            ->where('order_number', $orderNumber)
-            ->with(['items.menuItem', 'table', 'voucher'])
-            ->first();
+        $order = $this->resolveOrderForPublicOrTenant($request, $orderNumber);
 
         if (!$order) {
             return $this->notFound('Order not found');
         }
 
         // Get tenant/restaurant info for the invoice header
-        $tenant = Tenant::find($order->tenant_id);
+        $tenant = Tenant::withoutGlobalScopes()->find($order->tenant_id);
 
         return $this->success([
             'invoice' => [
                 'invoice_number'  => $order->invoice_number,
                 'date'            => $order->created_at->toIso8601String(),
                 'order_number'    => $order->order_number,
+            ],
+            'order' => [
+                'type' => $order->type,
+                'table_number' => $order->table?->table_number,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'delivery_address' => $order->delivery_address,
+                'created_at' => $order->created_at->toIso8601String(),
             ],
             'restaurant' => $tenant ? [
                 'name'       => $tenant->name,
@@ -278,14 +293,58 @@ class OrderController extends BaseApiController
                 'net_amount'  => $order->net_amount,
                 'vat_rate'    => $order->vat_rate,
                 'vat_amount'  => $order->vat_amount,
+                'sd_rate'     => $order->sd_rate,
+                'sd_amount'   => $order->sd_amount,
                 'grand_total' => $order->grand_total,
             ],
             'payment' => [
                 'method' => $order->payment_method,
                 'status' => $order->payment_status,
                 'paid_at' => $order->paid_at?->toIso8601String(),
+                'split_payments' => $order->split_payment_details,
             ],
         ]);
+    }
+
+    private function resolveOrderForPublicOrTenant(Request $request, string $orderNumber): ?Order
+    {
+        $order = Order::withoutGlobalScopes()
+            ->where('order_number', $orderNumber)
+            ->with(['items.menuItem', 'table', 'voucher'])
+            ->first();
+
+        if (!$order) {
+            return null;
+        }
+
+        $apiUser = auth('api')->user();
+
+        if ($this->canAccessOrderAsTenantUser($apiUser, $order)) {
+            return $order;
+        }
+
+        $accessToken = (string) $request->query('access_token', $request->input('access_token', ''));
+
+        if ($accessToken !== ''
+            && !empty($order->public_access_token)
+            && hash_equals((string) $order->public_access_token, $accessToken)) {
+            return $order;
+        }
+
+        return null;
+    }
+
+    private function canAccessOrderAsTenantUser(?User $user, Order $order): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return (int) $user->tenant_id === (int) $order->tenant_id;
     }
 
     /**
@@ -299,11 +358,24 @@ class OrderController extends BaseApiController
             return $this->notFound('Order not found');
         }
 
+        if ($order->payment_status === 'paid') {
+            return $this->error('Order is already paid', 422);
+        }
+
+        if ($order->isCancelled()) {
+            return $this->error('Cannot mark a cancelled order as paid', 422);
+        }
+
         $order->update([
             'payment_status' => 'paid',
             'paid_at' => now(),
             'transaction_id' => $request->transaction_id ?? null,
             'payment_gateway' => $request->payment_gateway ?? ($order->payment_method === 'cash' ? 'counter' : null),
+        ]);
+
+        AuditLogger::logAction('payment_marked_paid', $order, [
+            'payment_method' => $order->payment_method,
+            'grand_total' => $order->grand_total,
         ]);
 
         return $this->success($order->fresh()->load(['items.menuItem', 'table', 'voucher']), 'Payment marked as paid');

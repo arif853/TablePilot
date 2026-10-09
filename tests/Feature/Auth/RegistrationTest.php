@@ -1,19 +1,47 @@
 <?php
 
-test('registration screen can be rendered', function () {
-    $response = $this->get('/register');
+use App\Models\SubscriptionPlan;
 
-    $response->assertStatus(200);
-});
+/**
+ * Registration Tests (API)
+ *
+ * Tests API user registration endpoint.
+ */
 
-test('new users can register', function () {
-    $response = $this->post('/register', [
+test('new users can register via api', function () {
+    $plan = SubscriptionPlan::factory()->create();
+
+    $response = $this->postJson('/api/auth/register', [
         'name' => 'Test User',
         'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'restaurant_name' => 'Test Restaurant',
+        'phone' => '01700000000',
+        'plan_id' => $plan->id,
     ]);
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertStatus(201)
+        ->assertJsonPath('data.next_step', 'verify_email');
+});
+
+test('registration requires valid email', function () {
+    $response = $this->postJson('/api/auth/register', [
+        'name' => 'Test',
+        'email' => 'not-an-email',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+    ]);
+
+    $response->assertStatus(422);
+});
+
+test('registration requires password confirmation', function () {
+    $response = $this->postJson('/api/auth/register', [
+        'name' => 'Test',
+        'email' => 'test@example.com',
+        'password' => 'password123',
+    ]);
+
+    $response->assertStatus(422);
 });
