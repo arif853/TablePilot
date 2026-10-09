@@ -57,7 +57,7 @@ export default function ReportsPage() {
 
     return (
         <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6">Reports</h2>
+            <h2 className="page-title mb-6">Reports</h2>
 
             {/* Tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
@@ -96,7 +96,7 @@ export default function ReportsPage() {
                         <div className="card">
                             <h3 className="font-semibold mb-4">Daily Breakdown</h3>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="data-table">
                                     <thead><tr className="text-left border-b"><th className="pb-2">Date</th><th className="pb-2">Orders</th><th className="pb-2">Revenue</th><th className="pb-2">VAT</th><th className="pb-2">Discounts</th></tr></thead>
                                     <tbody>
                                         {salesData.daily_breakdown?.map((d) => (
@@ -117,7 +117,7 @@ export default function ReportsPage() {
                 tableLoading ? <LoadingSpinner /> : (
                     <div className="card">
                         <h3 className="font-semibold mb-4">Revenue by Table</h3>
-                        <table className="w-full text-sm">
+                        <table className="data-table">
                             <thead><tr className="text-left border-b"><th className="pb-2">Table</th><th className="pb-2">Orders</th><th className="pb-2">Revenue</th><th className="pb-2">Avg</th></tr></thead>
                             <tbody>
                                 {tableData?.map((t) => (
@@ -141,7 +141,7 @@ export default function ReportsPage() {
                         </div>
                         <div className="card">
                             <h3 className="font-semibold mb-4">Voucher Breakdown</h3>
-                            <table className="w-full text-sm">
+                            <table className="data-table">
                                 <thead><tr className="text-left border-b"><th className="pb-2">Code</th><th className="pb-2">Used</th><th className="pb-2">Discount</th><th className="pb-2">Revenue</th></tr></thead>
                                 <tbody>
                                     {voucherData.voucher_breakdown?.map((v) => (
@@ -179,7 +179,7 @@ export default function ReportsPage() {
                                 {vatDailyData.by_payment_method?.length > 0 && (
                                     <div className="card mb-4">
                                         <h4 className="font-medium text-sm mb-3 text-gray-700">By Payment Method</h4>
-                                        <table className="w-full text-sm">
+                                        <table className="data-table">
                                             <thead><tr className="text-left border-b"><th className="pb-2">Method</th><th className="pb-2 text-right">Orders</th><th className="pb-2 text-right">Sales</th><th className="pb-2 text-right">VAT</th></tr></thead>
                                             <tbody>
                                                 {vatDailyData.by_payment_method.map((m) => (
@@ -197,7 +197,7 @@ export default function ReportsPage() {
                                 {vatDailyData.by_order_type?.length > 0 && (
                                     <div className="card">
                                         <h4 className="font-medium text-sm mb-3 text-gray-700">By Order Type</h4>
-                                        <table className="w-full text-sm">
+                                        <table className="data-table">
                                             <thead><tr className="text-left border-b"><th className="pb-2">Type</th><th className="pb-2 text-right">Orders</th><th className="pb-2 text-right">Sales</th><th className="pb-2 text-right">VAT</th></tr></thead>
                                             <tbody>
                                                 {vatDailyData.by_order_type.map((t) => (
@@ -241,7 +241,7 @@ export default function ReportsPage() {
                                     <div className="card mb-4">
                                         <h4 className="font-medium text-sm mb-3 text-gray-700">Daily Breakdown</h4>
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
+                                            <table className="data-table">
                                                 <thead><tr className="text-left border-b"><th className="pb-2">Date</th><th className="pb-2 text-right">Orders</th><th className="pb-2 text-right">Sales</th><th className="pb-2 text-right">Net</th><th className="pb-2 text-right">VAT</th><th className="pb-2 text-right">Discount</th></tr></thead>
                                                 <tbody>
                                                     {vatMonthlyData.daily_breakdown.map((d) => (
@@ -262,7 +262,7 @@ export default function ReportsPage() {
                                 {vatMonthlyData.by_vat_rate?.length > 0 && (
                                     <div className="card">
                                         <h4 className="font-medium text-sm mb-3 text-gray-700">By VAT Rate</h4>
-                                        <table className="w-full text-sm">
+                                        <table className="data-table">
                                             <thead><tr className="text-left border-b"><th className="pb-2">Rate</th><th className="pb-2 text-right">Orders</th><th className="pb-2 text-right">Net</th><th className="pb-2 text-right">VAT</th><th className="pb-2 text-right">Total</th></tr></thead>
                                             <tbody>
                                                 {vatMonthlyData.by_vat_rate.map((r) => (
@@ -289,7 +289,7 @@ export default function ReportsPage() {
                 compareLoading ? <LoadingSpinner /> : compareData && (
                     <div className="card">
                         <h3 className="font-semibold mb-4">Monthly Revenue Comparison</h3>
-                        <table className="w-full text-sm">
+                        <table className="data-table">
                             <thead><tr className="text-left border-b"><th className="pb-2">Month</th><th className="pb-2">{compareData.current_year.year}</th><th className="pb-2">{compareData.last_year.year}</th></tr></thead>
                             <tbody>
                                 {[...Array(12)].map((_, i) => {

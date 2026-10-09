@@ -90,15 +90,18 @@ export default function OrdersPage() {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Orders</h2>
+            <div className="mb-6">
+                <h2 className="page-title">Orders</h2>
+                <p className="page-subtitle">Track, update and settle every order in one place.</p>
+            </div>
 
             {/* Filter tabs */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                <button onClick={() => setFilter('')} className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap ${!filter ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            <div className="flex gap-1 mb-6 overflow-x-auto scrollbar-hide p-1 bg-gray-100 rounded-xl w-full sm:w-fit">
+                <button onClick={() => setFilter('')} className={`px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition ${!filter ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
                     Today
                 </button>
                 {STATUS_OPTIONS.map((s) => (
-                    <button key={s} onClick={() => setFilter(s)} className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize whitespace-nowrap ${filter === s ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    <button key={s} onClick={() => setFilter(s)} className={`px-3.5 py-1.5 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition ${filter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
                         {s}
                     </button>
                 ))}
@@ -107,11 +110,11 @@ export default function OrdersPage() {
             {/* Orders List */}
             <div className="space-y-3">
                 {orders.map((order) => (
-                    <div key={order.id} className="card cursor-pointer hover:shadow-md" onClick={() => setViewOrder(order)}>
+                    <div key={order.id} className="card card-hover p-4 sm:p-5 cursor-pointer" onClick={() => setViewOrder(order)}>
                         <div className="flex items-start sm:items-center justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-bold">{order.order_number}</span>
+                                    <span className="font-bold text-gray-900">{order.order_number}</span>
                                     <StatusBadge status={order.status} />
                                     <span className="text-xs text-gray-400 capitalize">{order.type === 'quick' ? 'Quick Sale' : order.type}</span>
                                     {order.source === 'pos' && (
@@ -137,13 +140,21 @@ export default function OrdersPage() {
                                 </div>
                             </div>
                             <div className="text-right shrink-0">
-                                <p className="font-bold text-lg">৳{order.grand_total}</p>
-                                <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleTimeString()}</p>
+                                <p className="font-bold text-lg text-gray-900 tabular">৳{order.grand_total}</p>
+                                <p className="text-xs text-gray-400 tabular">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                             </div>
                         </div>
                     </div>
                 ))}
-                {orders.length === 0 && <p className="text-center text-gray-400 py-8">No orders found</p>}
+                {orders.length === 0 && (
+                    <div className="card text-center py-14">
+                        <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
+                            <HiOutlineDocumentText className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="mt-3 text-sm font-semibold text-gray-700">No orders found</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Orders matching this filter will show up here.</p>
+                    </div>
+                )}
             </div>
 
             {/* Order Detail Modal */}
@@ -157,7 +168,7 @@ export default function OrdersPage() {
                         </div>
 
                         {/* Payment Info */}
-                        <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between flex-wrap gap-2">
+                        <div className="bg-gray-50 ring-1 ring-gray-200/70 rounded-xl p-3 flex items-center justify-between flex-wrap gap-2">
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1.5 text-sm">
                                     {(() => {
@@ -180,7 +191,7 @@ export default function OrdersPage() {
                                     <button
                                         onClick={() => markPaidMutation.mutate(viewOrder.id)}
                                         disabled={markPaidMutation.isPending}
-                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                        className="btn-success px-3 py-1.5"
                                     >
                                         <HiOutlineCheckCircle className="w-4 h-4" />
                                         {markPaidMutation.isPending ? 'Saving...' : 'Mark Paid'}
@@ -189,7 +200,7 @@ export default function OrdersPage() {
                                 <button
                                     onClick={() => handleViewInvoice(viewOrder.order_number)}
                                     disabled={loadingInvoice}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
+                                    className="btn-primary px-3 py-1.5"
                                 >
                                     <HiOutlineDocumentText className="w-4 h-4" />
                                     {loadingInvoice ? 'Loading...' : 'Invoice'}
@@ -206,7 +217,7 @@ export default function OrdersPage() {
 
                         {/* Items */}
                         <div className="border rounded-lg overflow-hidden">
-                            <table className="w-full text-sm">
+                            <table className="data-table">
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="text-left px-4 py-2">Item</th>

@@ -42,7 +42,7 @@ export default function SubscriptionRenewPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-gray-900">Renew Subscription</h2>
+                <h2 className="page-title">Renew Subscription</h2>
                 <p className="text-sm text-gray-500 mt-1">Choose a plan and continue with payment.</p>
             </div>
 

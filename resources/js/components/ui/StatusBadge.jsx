@@ -1,33 +1,45 @@
 import React from 'react';
 
-const statusColors = {
-    placed: 'bg-yellow-100 text-yellow-800',
-    confirmed: 'bg-blue-100 text-blue-800',
-    preparing: 'bg-orange-100 text-orange-800',
-    ready: 'bg-green-100 text-green-800',
-    served: 'bg-purple-100 text-purple-800',
-    completed: 'bg-gray-100 text-gray-800',
-    cancelled: 'bg-red-100 text-red-800',
-    active: 'bg-green-100 text-green-800',
-    grace: 'bg-amber-100 text-amber-800',
-    expired: 'bg-red-100 text-red-800',
-    pending: 'bg-yellow-100 text-yellow-800',
-    submitted: 'bg-yellow-100 text-yellow-800',
-    verified: 'bg-blue-100 text-blue-800',
-    approved: 'bg-green-100 text-green-800',
-    rejected: 'bg-red-100 text-red-800',
-    available: 'bg-green-100 text-green-800',
-    occupied: 'bg-red-100 text-red-800',
-    reserved: 'bg-blue-100 text-blue-800',
-    inactive: 'bg-gray-100 text-gray-500',
+// [badge colours, dot colour]
+const tones = {
+    yellow: ['bg-amber-50 text-amber-800 ring-amber-600/20', 'bg-amber-500'],
+    blue: ['bg-sky-50 text-sky-700 ring-sky-600/20', 'bg-sky-500'],
+    orange: ['bg-orange-50 text-orange-700 ring-orange-600/20', 'bg-orange-500'],
+    green: ['bg-emerald-50 text-emerald-700 ring-emerald-600/20', 'bg-emerald-500'],
+    purple: ['bg-violet-50 text-violet-700 ring-violet-600/20', 'bg-violet-500'],
+    red: ['bg-red-50 text-red-700 ring-red-600/20', 'bg-red-500'],
+    gray: ['bg-gray-50 text-gray-600 ring-gray-500/20', 'bg-gray-400'],
+};
+
+const statusTones = {
+    placed: 'yellow',
+    confirmed: 'blue',
+    preparing: 'orange',
+    ready: 'green',
+    served: 'purple',
+    completed: 'gray',
+    cancelled: 'red',
+    active: 'green',
+    grace: 'yellow',
+    expired: 'red',
+    pending: 'yellow',
+    submitted: 'yellow',
+    verified: 'blue',
+    approved: 'green',
+    rejected: 'red',
+    available: 'green',
+    occupied: 'red',
+    reserved: 'blue',
+    inactive: 'gray',
 };
 
 export default function StatusBadge({ status }) {
-    const colorClass = statusColors[status] || 'bg-gray-100 text-gray-800';
+    const [colorClass, dotClass] = tones[statusTones[status] || 'gray'];
 
     return (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${colorClass}`}>
-            {status}
+        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium capitalize ring-1 ring-inset whitespace-nowrap ${colorClass}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+            {status?.replace(/_/g, ' ')}
         </span>
     );
 }

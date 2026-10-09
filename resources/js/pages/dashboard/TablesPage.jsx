@@ -124,7 +124,7 @@ export default function TablesPage() {
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Tables</h2>
+                <h2 className="page-title">Tables</h2>
                 <div className="flex flex-wrap justify-end gap-2">
                     <button onClick={handleShowTakeawayQr} className="btn-secondary text-sm sm:text-base flex items-center gap-1.5">
                         <HiOutlineShoppingBag className="w-4 h-4" /> Takeaway QR

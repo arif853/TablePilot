@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useBrandingStore } from '../stores/brandingStore';
 import { useModuleStore } from '../stores/moduleStore';
@@ -33,39 +33,40 @@ import {
     HiOutlineTicket,
     HiOutlineClock,
     HiOutlineExclamation,
+    HiOutlineFire,
 } from 'react-icons/hi';
 import { HiArrowsPointingOut, HiArrowsPointingIn } from 'react-icons/hi2';
 import BrandLogo from '../components/ui/BrandLogo';
 
 // Restaurant/Tenant menu items
 const tenantMenuItems = [
-    { icon: HiOutlineHome, label: 'Dashboard', to: '/dashboard', roles: ['restaurant_admin', 'staff'] },
-    { icon: HiOutlineDesktopComputer, label: 'POS Terminal', to: '/dashboard/pos', roles: ['restaurant_admin', 'staff'] },
-    { icon: HiOutlineShoppingCart, label: 'Orders', to: '/dashboard/orders', roles: ['restaurant_admin', 'staff'] },
-    { icon: HiOutlineClipboardList, label: 'Menu Items', to: '/dashboard/menu', roles: ['restaurant_admin'] },
-    { icon: HiOutlineCollection, label: 'Categories', to: '/dashboard/categories', roles: ['restaurant_admin'] },
-    { icon: HiOutlineTable, label: 'Tables', to: '/dashboard/tables', roles: ['restaurant_admin', 'staff'] },
-    { icon: HiOutlineTag, label: 'Vouchers', to: '/dashboard/vouchers', roles: ['restaurant_admin'] },
-    { icon: HiOutlineChartBar, label: 'Reports', to: '/dashboard/reports', roles: ['restaurant_admin'] },
-    { icon: HiOutlineCash, label: 'Settlements', to: '/dashboard/settlements', roles: ['restaurant_admin'] },
-    { icon: HiOutlineUsers, label: 'Users', to: '/dashboard/users', roles: ['restaurant_admin'] },
-    { icon: HiOutlineCog, label: 'Settings', to: '/dashboard/settings', roles: ['restaurant_admin'] },
+    { icon: HiOutlineHome, label: 'Dashboard', to: '/dashboard', roles: ['restaurant_admin', 'staff'], section: 'Overview' },
+    { icon: HiOutlineDesktopComputer, label: 'POS Terminal', to: '/dashboard/pos', roles: ['restaurant_admin', 'staff'], section: 'Operations' },
+    { icon: HiOutlineShoppingCart, label: 'Orders', to: '/dashboard/orders', roles: ['restaurant_admin', 'staff'], section: 'Operations' },
+    { icon: HiOutlineClipboardList, label: 'Menu Items', to: '/dashboard/menu', roles: ['restaurant_admin'], section: 'Menu' },
+    { icon: HiOutlineCollection, label: 'Categories', to: '/dashboard/categories', roles: ['restaurant_admin'], section: 'Menu' },
+    { icon: HiOutlineTable, label: 'Tables', to: '/dashboard/tables', roles: ['restaurant_admin', 'staff'], section: 'Operations' },
+    { icon: HiOutlineTag, label: 'Vouchers', to: '/dashboard/vouchers', roles: ['restaurant_admin'], section: 'Menu' },
+    { icon: HiOutlineChartBar, label: 'Reports', to: '/dashboard/reports', roles: ['restaurant_admin'], section: 'Business' },
+    { icon: HiOutlineCash, label: 'Settlements', to: '/dashboard/settlements', roles: ['restaurant_admin'], section: 'Business' },
+    { icon: HiOutlineUsers, label: 'Users', to: '/dashboard/users', roles: ['restaurant_admin'], section: 'Business' },
+    { icon: HiOutlineCog, label: 'Settings', to: '/dashboard/settings', roles: ['restaurant_admin'], section: 'Business' },
 ];
 
 // Super Admin menu items
 const superAdminMenuItems = [
-    { icon: HiOutlineHome, label: 'Dashboard', to: '/dashboard/admin', roles: ['super_admin'] },
-    { icon: HiOutlineClock, label: 'Applications', to: '/dashboard/admin/applications', roles: ['super_admin'] },
-    { icon: HiOutlineOfficeBuilding, label: 'Tenants', to: '/dashboard/admin/tenants', roles: ['super_admin'] },
-    { icon: HiOutlineUsers, label: 'Users', to: '/dashboard/admin/users', roles: ['super_admin'] },
-    { icon: HiOutlineCreditCard, label: 'Subscriptions', to: '/dashboard/admin/subscriptions', roles: ['super_admin'] },
-    { icon: HiOutlineTicket, label: 'Plans', to: '/dashboard/admin/plans', roles: ['super_admin'] },
-    { icon: HiOutlineCash, label: 'Financials', to: '/dashboard/admin/financials', roles: ['super_admin'] },
-    { icon: HiOutlineSpeakerphone, label: 'Announcements', to: '/dashboard/admin/announcements', roles: ['super_admin'] },
-    { icon: HiOutlineMail, label: 'Enquiries', to: '/dashboard/admin/enquiries', roles: ['super_admin'] },
-    { icon: HiOutlineServer, label: 'System', to: '/dashboard/admin/system', roles: ['super_admin'] },
-    { icon: HiOutlineDocumentText, label: 'Audit Logs', to: '/dashboard/admin/audit-logs', roles: ['super_admin'] },
-    { icon: HiOutlineCog, label: 'Platform Settings', to: '/dashboard/admin/settings', roles: ['super_admin'] },
+    { icon: HiOutlineHome, label: 'Dashboard', to: '/dashboard/admin', roles: ['super_admin'], section: 'Overview' },
+    { icon: HiOutlineClock, label: 'Applications', to: '/dashboard/admin/applications', roles: ['super_admin'], section: 'Tenants' },
+    { icon: HiOutlineOfficeBuilding, label: 'Tenants', to: '/dashboard/admin/tenants', roles: ['super_admin'], section: 'Tenants' },
+    { icon: HiOutlineUsers, label: 'Users', to: '/dashboard/admin/users', roles: ['super_admin'], section: 'Tenants' },
+    { icon: HiOutlineCreditCard, label: 'Subscriptions', to: '/dashboard/admin/subscriptions', roles: ['super_admin'], section: 'Tenants' },
+    { icon: HiOutlineTicket, label: 'Plans', to: '/dashboard/admin/plans', roles: ['super_admin'], section: 'Tenants' },
+    { icon: HiOutlineCash, label: 'Financials', to: '/dashboard/admin/financials', roles: ['super_admin'], section: 'Platform' },
+    { icon: HiOutlineSpeakerphone, label: 'Announcements', to: '/dashboard/admin/announcements', roles: ['super_admin'], section: 'Platform' },
+    { icon: HiOutlineMail, label: 'Enquiries', to: '/dashboard/admin/enquiries', roles: ['super_admin'], section: 'Platform' },
+    { icon: HiOutlineServer, label: 'System', to: '/dashboard/admin/system', roles: ['super_admin'], section: 'Platform' },
+    { icon: HiOutlineDocumentText, label: 'Audit Logs', to: '/dashboard/admin/audit-logs', roles: ['super_admin'], section: 'Platform' },
+    { icon: HiOutlineCog, label: 'Platform Settings', to: '/dashboard/admin/settings', roles: ['super_admin'], section: 'Platform' },
 ];
 
 // Combine based on user role
@@ -92,6 +93,7 @@ export default function DashboardLayout() {
     const clearModules = useModuleStore((s) => s.clear);
     const { branding } = useBrandingStore();
     const navigate = useNavigate();
+    const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -206,12 +208,39 @@ export default function DashboardLayout() {
         return hasModule(requiredModule);
     });
 
-    const sidebarWidth = sidebarCollapsed ? 'w-[72px]' : 'w-64';
+    const navItems = [...filteredMenu];
+    if (user?.role !== 'super_admin' && moduleIsLoaded && hasModule('kitchen_display')) {
+        // Kitchen Display opens full-screen outside the dashboard; slot it in with the other floor tools
+        const afterTables = navItems.findIndex((item) => item.to === '/dashboard/tables');
+        navItems.splice(afterTables === -1 ? navItems.length : afterTables + 1, 0, {
+            icon: HiOutlineFire, label: 'Kitchen Display', to: '/kitchen', section: 'Operations',
+        });
+    }
+
+    const navSections = navItems.reduce((groups, item) => {
+        // Group by section in first-seen order, even when the menu lists them interleaved
+        const group = groups.find((g) => g.title === item.section);
+        if (group) group.items.push(item);
+        else groups.push({ title: item.section, items: [item] });
+        return groups;
+    }, []);
+
+    const currentPage = navItems
+        .filter((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))
+        .sort((a, b) => b.to.length - a.to.length)[0];
+    const pageTitle = currentPage?.label
+        || (location.pathname.startsWith('/dashboard/profile') ? 'My Profile' : null)
+        || (location.pathname.startsWith('/dashboard/subscription') ? 'Subscription' : null);
+
+    const roleLabel = user?.role?.replace(/_/g, ' ');
+    const initial = user?.name?.[0]?.toUpperCase();
+
+    const sidebarWidth = sidebarCollapsed ? 'w-[76px]' : 'w-64';
 
     const SidebarContent = ({ collapsed = false }) => (
         <>
             {/* Logo */}
-            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 shrink-0">
+            <div className={`flex items-center h-16 shrink-0 ${collapsed ? 'justify-center px-2' : 'justify-between px-5'}`}>
                 <div className="flex items-center overflow-hidden">
                     {/* An uploaded platform logo is a full wordmark; otherwise (or if it fails to load) show the mark + name */}
                     <BrandLogo
@@ -222,64 +251,84 @@ export default function DashboardLayout() {
                             <>
                                 <img src="/assets/images/tablepilot-mark.svg" alt={branding.platform_name} className="h-8 w-8" />
                                 {!collapsed && branding.platform_name && (
-                                    <span className="ml-2 text-sm font-bold text-gray-800 truncate hidden lg:inline">{branding.platform_name}</span>
+                                    <span className="ml-2.5 text-[15px] font-bold tracking-tight text-gray-900 truncate">{branding.platform_name}</span>
                                 )}
                             </>
                         }
                     />
                 </div>
                 {/* Close button for mobile overlay */}
-                <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
+                <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
                     <HiOutlineX className="w-5 h-5" />
                 </button>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
-                {filteredMenu.map((item) => (
-                    <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.to === '/dashboard' || item.to === '/dashboard/admin'}
-                        onClick={() => setSidebarOpen(false)}
-                        title={collapsed ? item.label : undefined}
-                        className={({ isActive }) =>
-                            `flex items-center ${collapsed ? 'justify-center px-2' : 'px-3'} py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                                isActive
-                                    ? 'bg-brand-50 text-brand-800'
-                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                            }`
-                        }
-                    >
-                        <item.icon className="w-5 h-5 shrink-0" />
-                        {!collapsed && <span className="ml-3 truncate">{item.label}</span>}
-                    </NavLink>
-                ))}
+            {/* Tenant name */}
+            {!collapsed && user?.role !== 'super_admin' && user?.tenant?.name && (
+                <div className="mx-3 mb-2 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200/70">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">Restaurant</p>
+                    <p className="text-sm font-semibold text-gray-800 truncate">{user.tenant.name}</p>
+                </div>
+            )}
 
-                {/* Kitchen Display Link */}
-                {user?.role !== 'super_admin' && moduleIsLoaded && hasModule('kitchen_display') && (
-                    <NavLink
-                        to="/kitchen"
-                        onClick={() => setSidebarOpen(false)}
-                        title={collapsed ? 'Kitchen Display' : undefined}
-                        className={`flex items-center ${collapsed ? 'justify-center px-2' : 'px-3'} py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg`}
-                    >
-                        <HiOutlineClipboardList className="w-5 h-5 shrink-0" />
-                        {!collapsed && <span className="ml-3">Kitchen Display</span>}
-                    </NavLink>
-                )}
+            {/* Navigation */}
+            <nav className="flex-1 px-3 pb-4 overflow-y-auto scrollbar-hide">
+                {navSections.map((section, i) => (
+                    <div key={section.title} className={i === 0 ? 'pt-2' : 'pt-5'}>
+                        {collapsed ? (
+                            i > 0 && <div className="mx-3 mb-3 border-t border-gray-100" />
+                        ) : (
+                            <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{section.title}</p>
+                        )}
+                        <div className="space-y-0.5">
+                            {section.items.map((item) => (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    end={item.to === '/dashboard' || item.to === '/dashboard/admin'}
+                                    onClick={() => setSidebarOpen(false)}
+                                    title={collapsed ? item.label : undefined}
+                                    className={({ isActive }) =>
+                                        `group relative flex items-center ${collapsed ? 'justify-center px-2' : 'px-3'} py-2 text-sm rounded-lg transition-colors ${
+                                            isActive
+                                                ? 'bg-brand-50 text-brand-800 font-semibold'
+                                                : 'text-gray-600 font-medium hover:bg-gray-100 hover:text-gray-900'
+                                        }`
+                                    }
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-brand-500" />}
+                                            <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                                            {!collapsed && <span className="ml-3 truncate">{item.label}</span>}
+                                        </>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </nav>
 
             {/* Bottom section */}
-            {!collapsed && (
-                <div className="border-t border-gray-200 p-4 shrink-0">
-                    {user?.role !== 'super_admin' && (
-                        <div className="text-center">
-                            <PoweredBy />
+            <div className={`border-t border-gray-100 shrink-0 ${collapsed ? 'p-3' : 'p-4'}`}>
+                <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-sm font-semibold shrink-0 ring-2 ring-white shadow-sm" title={collapsed ? user?.name : undefined}>
+                        {initial}
+                    </div>
+                    {!collapsed && (
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{user?.name}</p>
+                            <p className="text-xs text-gray-500 capitalize truncate">{roleLabel}</p>
                         </div>
                     )}
                 </div>
-            )}
+                {!collapsed && user?.role !== 'super_admin' && (
+                    <div className="mt-3 text-center">
+                        <PoweredBy />
+                    </div>
+                )}
+            </div>
         </>
     );
 
@@ -288,24 +337,24 @@ export default function DashboardLayout() {
             {/* Mobile Sidebar Overlay */}
             {sidebarOpen && (
                 <div className="fixed inset-0 z-40 md:hidden">
-                    <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-                    <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white flex flex-col shadow-xl">
+                    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+                    <aside className="fixed inset-y-0 left-0 z-50 w-72 bg-white flex flex-col shadow-2xl">
                         <SidebarContent collapsed={false} />
                     </aside>
                 </div>
             )}
 
             {/* Desktop Sidebar */}
-            <aside className={`hidden md:flex md:flex-col ${sidebarWidth} bg-white border-r border-gray-200 shrink-0 transition-all duration-300`}>
+            <aside className={`hidden md:flex md:flex-col ${sidebarWidth} bg-white border-r border-gray-200/80 shrink-0 transition-all duration-300`}>
                 <SidebarContent collapsed={sidebarCollapsed} />
             </aside>
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="flex items-center justify-between h-16 px-4 md:px-6 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0">
-                    {/* Left: Sidebar Toggle */}
-                    <div className="flex items-center gap-2">
+                <header className="flex items-center justify-between gap-3 h-16 px-4 md:px-6 bg-white/85 backdrop-blur-md border-b border-gray-200/80 sticky top-0 z-30 shrink-0">
+                    {/* Left: Sidebar Toggle + page title */}
+                    <div className="flex items-center gap-2 min-w-0">
                         {/* Mobile hamburger */}
                         <button
                             onClick={() => setSidebarOpen(true)}
@@ -321,6 +370,13 @@ export default function DashboardLayout() {
                         >
                             <HiOutlineMenu className="w-6 h-6" />
                         </button>
+                        {pageTitle && (
+                            <div className="hidden sm:flex items-center gap-2 min-w-0 pl-2 ml-1 border-l border-gray-200">
+                                <span className="text-sm text-gray-400 capitalize">{currentPage?.section ?? 'Account'}</span>
+                                <span className="text-gray-300">/</span>
+                                <h1 className="text-sm font-semibold text-gray-900 truncate">{pageTitle}</h1>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right: Actions */}
@@ -346,17 +402,19 @@ export default function DashboardLayout() {
                                 title="Notifications"
                             >
                                 <HiOutlineBell className="w-5 h-5" />
-                                {/* Unread dot */}
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
                             </button>
                             {notificationsOpen && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 z-50">
+                                <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl ring-1 ring-gray-900/5 z-50 overflow-hidden">
                                     <div className="px-4 py-3 border-b border-gray-100">
                                         <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                                     </div>
                                     <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
-                                        <div className="px-4 py-8 text-center text-sm text-gray-400">
-                                            No new notifications
+                                        <div className="px-4 py-10 text-center">
+                                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gray-100 flex items-center justify-center">
+                                                <HiOutlineBell className="w-5 h-5 text-gray-400" />
+                                            </div>
+                                            <p className="text-sm font-medium text-gray-600">You're all caught up</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">No new notifications</p>
                                         </div>
                                     </div>
                                 </div>
@@ -367,21 +425,21 @@ export default function DashboardLayout() {
                         <div className="relative" ref={profileRef}>
                             <button
                                 onClick={() => { setProfileOpen((v) => !v); setNotificationsOpen(false); }}
-                                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-2 p-1 sm:pr-2 rounded-full sm:rounded-xl hover:bg-gray-100 transition-colors"
                             >
-                                <div className="w-8 h-8 bg-brand-600 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0">
-                                    {user?.name?.[0]?.toUpperCase()}
+                                <div className="w-8 h-8 bg-gradient-to-br from-brand-400 to-brand-600 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 shadow-sm">
+                                    {initial}
                                 </div>
                                 <div className="hidden sm:block text-left min-w-0">
                                     <p className="text-sm font-medium text-gray-700 truncate max-w-[120px]">{user?.name}</p>
-                                    <p className="text-xs text-gray-400 capitalize">{user?.role?.replace('_', ' ')}</p>
+                                    <p className="text-xs text-gray-400 capitalize">{roleLabel}</p>
                                 </div>
                                 <HiOutlineChevronDown className="w-4 h-4 text-gray-400 hidden sm:block" />
                             </button>
                             {profileOpen && (
-                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 z-50 py-1">
-                                    <div className="px-4 py-3 border-b border-gray-100">
-                                        <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
+                                <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl ring-1 ring-gray-900/5 z-50 py-1.5 overflow-hidden">
+                                    <div className="px-4 py-3 mb-1 border-b border-gray-100">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
                                         <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                                     </div>
                                     <button
@@ -400,7 +458,7 @@ export default function DashboardLayout() {
                                             Restaurant Settings
                                         </button>
                                     )}
-                                    <div className="border-t border-gray-100">
+                                    <div className="mt-1 pt-1 border-t border-gray-100">
                                         <button
                                             onClick={handleLogout}
                                             className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"

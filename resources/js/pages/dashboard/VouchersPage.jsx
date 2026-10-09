@@ -46,7 +46,7 @@ export default function VouchersPage() {
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Vouchers</h2>
+                <h2 className="page-title">Vouchers</h2>
                 <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary text-sm sm:text-base">+ Add Voucher</button>
             </div>
 

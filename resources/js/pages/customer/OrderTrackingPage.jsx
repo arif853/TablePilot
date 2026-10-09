@@ -17,6 +17,13 @@ import {
 
 const STATUS_STEPS = ['placed', 'confirmed', 'preparing', 'ready', 'served', 'completed'];
 const STATUS_EMOJIS = { placed: '📋', confirmed: '✅', preparing: '👨‍🍳', ready: '🔔', served: '🍽️', completed: '🎉' };
+const STATUS_MESSAGES = {
+    placed: 'Waiting for the restaurant to confirm your order',
+    confirmed: 'Your order has been confirmed',
+    preparing: 'The kitchen is preparing your food',
+    ready: 'Your food is ready for pickup!',
+    served: 'Your food has been served. Enjoy!',
+};
 
 // Get recent orders from localStorage
 function getRecentOrders() {
@@ -138,37 +145,47 @@ export default function OrderTrackingPage() {
             <div className="max-w-md mx-auto">
                 {/* Header with refresh */}
                 <div className="text-center mb-6">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                        <h1 className="text-xl font-bold text-gray-900">Order #{data.order_number}</h1>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Order</p>
+                    <div className="flex items-center justify-center gap-2 mb-2.5">
+                        <h1 className="text-2xl font-bold tracking-tight text-gray-900">#{data.order_number}</h1>
                         {isActive && (
-                            <button onClick={() => refetch()} className="p-1.5 rounded-full hover:bg-gray-100 transition text-gray-400">
+                            <button onClick={() => refetch()} className="p-1.5 rounded-lg bg-white ring-1 ring-gray-200 hover:bg-gray-50 transition text-gray-500" aria-label="Refresh">
                                 <HiOutlineRefresh className="w-4 h-4" />
                             </button>
                         )}
                     </div>
                     <div className="flex items-center justify-center gap-2 flex-wrap">
                         <StatusBadge status={data.status} />
-                        <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded-full capitalize">
+                        <span className="text-xs font-medium text-gray-600 px-2 py-0.5 bg-white ring-1 ring-gray-200 rounded-full capitalize">
                             {data.type === 'dine' ? '🍽️ Dine-in' : '📦 Takeaway'}
                         </span>
                     </div>
                     {isActive && (
-                        <p className="text-xs text-gray-400 mt-2 animate-pulse">Auto-refreshing every 5s</p>
+                        <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-3">
+                            <span className="relative flex w-2 h-2">
+                                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                                <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-500" />
+                            </span>
+                            Live · updates every few seconds
+                        </p>
                     )}
                 </div>
 
                 {/* Large Status Display for active orders */}
                 {isActive && (
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-5 text-center">
-                        <div className="text-5xl mb-3">{STATUS_EMOJIS[data.status] || '📋'}</div>
-                        <p className="text-lg font-bold text-gray-900 capitalize">{data.status}</p>
-                        <p className="text-sm text-gray-500 mt-1">
-                            {data.status === 'placed' && 'Waiting for the restaurant to confirm your order'}
-                            {data.status === 'confirmed' && 'Your order has been confirmed'}
-                            {data.status === 'preparing' && 'The kitchen is preparing your food'}
-                            {data.status === 'ready' && 'Your food is ready for pickup!'}
-                            {data.status === 'served' && 'Your food has been served'}
-                        </p>
+                    <div className="bg-white rounded-3xl p-6 shadow-sm ring-1 ring-gray-200/70 mb-5 text-center">
+                        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-restaurant/10 ring-8 ring-restaurant/5 flex items-center justify-center text-4xl">
+                            {STATUS_EMOJIS[data.status] || '📋'}
+                        </div>
+                        <p className="text-xl font-bold tracking-tight text-gray-900 capitalize">{data.status}</p>
+                        <p className="text-sm text-gray-500 mt-1">{STATUS_MESSAGES[data.status]}</p>
+                        <div className="mt-5 h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-restaurant transition-all duration-700"
+                                style={{ width: `${Math.max(8, ((currentIdx + 1) / STATUS_STEPS.length) * 100)}%` }}
+                            />
+                        </div>
+                        <p className="mt-2 text-xs text-gray-400">Step {currentIdx + 1} of {STATUS_STEPS.length}</p>
                     </div>
                 )}
 
@@ -214,7 +231,7 @@ export default function OrderTrackingPage() {
                 {/* Invoice Button */}
                 <button
                     onClick={handleViewInvoice}
-                    className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 rounded-2xl text-gray-700 font-medium text-sm hover:bg-gray-50 shadow-sm transition active:scale-[0.98]"
+                    className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-white ring-1 ring-gray-200 rounded-2xl text-gray-800 font-semibold text-sm hover:bg-gray-50 shadow-sm transition active:scale-[0.98]"
                 >
                     <HiOutlineDocumentText className="w-5 h-5" />
                     View & Download Invoice
@@ -222,41 +239,48 @@ export default function OrderTrackingPage() {
 
                 {/* Progress Steps - compact */}
                 {data.status !== 'cancelled' && (
-                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
-                        <h3 className="font-semibold text-sm mb-4">Order Progress</h3>
-                        <div className="space-y-3">
+                    <div className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-200/70 mb-4">
+                        <h3 className="font-semibold text-sm text-gray-900 mb-4">Order progress</h3>
+                        <ol>
                             {STATUS_STEPS.map((step, i) => {
                                 const isCompleted = i <= currentIdx;
                                 const isCurrent = i === currentIdx;
+                                const isLast = i === STATUS_STEPS.length - 1;
                                 return (
-                                    <div key={step} className="flex items-center gap-3">
-                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
-                                            isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'
-                                        } ${isCurrent ? 'ring-3 ring-green-200' : ''}`}>
+                                    <li key={step} className="relative flex gap-3 pb-4 last:pb-0">
+                                        {!isLast && (
+                                            <span className={`absolute left-[13px] top-7 bottom-0 w-0.5 ${i < currentIdx ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+                                        )}
+                                        <div className={`relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                                            isCompleted ? 'bg-emerald-500 text-white' : 'bg-white text-gray-400 ring-2 ring-gray-200'
+                                        } ${isCurrent ? 'ring-4 ring-emerald-100' : ''}`}>
                                             {isCompleted ? '✓' : i + 1}
                                         </div>
-                                        <p className={`text-sm font-medium capitalize flex-1 ${isCompleted ? 'text-green-700' : 'text-gray-400'}`}>
-                                            {step}
-                                        </p>
-                                        {isCurrent && (
-                                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full animate-pulse font-medium">Current</span>
-                                        )}
-                                    </div>
+                                        <div className="flex-1 flex items-center justify-between min-h-[1.75rem]">
+                                            <p className={`text-sm capitalize ${isCurrent ? 'font-semibold text-gray-900' : isCompleted ? 'font-medium text-emerald-700' : 'text-gray-400'}`}>
+                                                {step}
+                                            </p>
+                                            {isCurrent && (
+                                                <span className="text-[10px] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 px-2 py-0.5 rounded-full font-semibold">Now</span>
+                                            )}
+                                        </div>
+                                    </li>
                                 );
                             })}
-                        </div>
+                        </ol>
                     </div>
                 )}
 
                 {data.status === 'cancelled' && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center mb-4">
-                        <p className="text-red-600 font-bold">❌ Order Cancelled</p>
+                    <div className="bg-red-50 ring-1 ring-red-200 rounded-2xl p-5 text-center mb-4">
+                        <p className="text-red-700 font-bold">Order cancelled</p>
+                        <p className="text-xs text-red-600/80 mt-1">Please contact the restaurant if you have any questions.</p>
                     </div>
                 )}
 
                 {/* Order Items */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
-                    <h3 className="font-semibold text-sm mb-3">Items ({data.items?.length})</h3>
+                <div className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-200/70 mb-4">
+                    <h3 className="font-semibold text-sm text-gray-900 mb-3">Items ({data.items?.length})</h3>
                     <div className="space-y-2.5">
                         {data.items?.map((item) => (
                             <div key={item.id} className="flex justify-between items-center">
@@ -289,8 +313,8 @@ export default function OrderTrackingPage() {
                 </div>
 
                 {/* Customer Details */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
-                    <h3 className="font-semibold text-sm mb-3">Details</h3>
+                <div className="bg-white rounded-2xl p-5 shadow-sm ring-1 ring-gray-200/70 mb-4">
+                    <h3 className="font-semibold text-sm text-gray-900 mb-3">Details</h3>
                     <div className="text-xs space-y-2 text-gray-600">
                         {data.table && <p>🪑 Table: <strong>{data.table.table_number}</strong></p>}
                         {data.customer_name && <p>👤 Name: <strong>{data.customer_name}</strong></p>}

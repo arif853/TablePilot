@@ -61,7 +61,7 @@ export default function ProfilePage() {
 
     return (
         <div className="max-w-2xl space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">My Profile</h2>
+            <h2 className="page-title">My Profile</h2>
 
             <div className="card">
                 <div className="flex items-center gap-4 mb-6">

@@ -8,7 +8,7 @@ export default function LoadingSpinner({ fullScreen = false, size = 'md' }) {
     };
 
     const spinner = (
-        <div className={`${sizeClasses[size]} animate-spin rounded-full border-4 border-gray-200 border-t-brand-600`} />
+        <div role="status" aria-label="Loading" className={`${sizeClasses[size]} animate-spin rounded-full border-[3px] border-brand-100 border-t-brand-600`} />
     );
 
     if (fullScreen) {

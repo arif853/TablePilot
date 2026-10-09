@@ -102,7 +102,7 @@ export default function MenuItemsPage() {
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Menu Items</h2>
+                <h2 className="page-title">Menu Items</h2>
                 <button onClick={() => openForm()} className="btn-primary text-sm sm:text-base">
                     + Add Item
                 </button>

@@ -452,7 +452,7 @@ export default function SettingsPage() {
 
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Settings</h2>
+            <h2 className="page-title mb-6">Settings</h2>
 
             {/* Tabs */}
             <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">

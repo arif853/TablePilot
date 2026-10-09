@@ -79,7 +79,7 @@ export default function UsersPage() {
         <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Team Members</h2>
+                    <h2 className="page-title">Team Members</h2>
                     {seats && (
                         <p className={`text-sm ${atLimit ? 'text-red-600' : 'text-gray-500'}`}>
                             {seats.used} of {seats.max} active users{atLimit ? ' · plan limit reached' : ''}
@@ -98,7 +98,7 @@ export default function UsersPage() {
 
             {/* Desktop Table */}
             <div className="hidden md:block card overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="data-table">
                     <thead>
                         <tr className="text-left border-b">
                             <th className="pb-3">Name</th><th className="pb-3">Email</th><th className="pb-3">Phone</th>

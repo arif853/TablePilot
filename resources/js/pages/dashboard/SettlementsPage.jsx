@@ -14,7 +14,7 @@ export default function SettlementsPage() {
 
     return (
         <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6">Financial Settlements</h2>
+            <h2 className="page-title mb-6">Financial Settlements</h2>
 
             {data?.summary && (
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 mb-6">
@@ -29,7 +29,7 @@ export default function SettlementsPage() {
                 <h3 className="font-semibold mb-4">Settlement History</h3>
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="data-table">
                         <thead>
                             <tr className="text-left border-b">
                                 <th className="pb-3">Period</th><th className="pb-3">Sold</th><th className="pb-3">Commission</th><th className="pb-3">Paid</th><th className="pb-3">Payable</th><th className="pb-3">Status</th>
