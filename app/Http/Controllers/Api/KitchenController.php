@@ -59,7 +59,11 @@ class KitchenController extends BaseApiController
 
         $order->advanceStatus();
 
-        broadcast(new \App\Events\OrderStatusUpdated($order->fresh()))->toOthers();
+        try {
+            broadcast(new \App\Events\OrderStatusUpdated($order->fresh()))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $this->success($order->fresh()->load(['items.menuItem', 'table']), 'Order advanced');
     }

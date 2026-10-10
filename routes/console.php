@@ -24,5 +24,13 @@ Schedule::job(new AutoCancelStaleOrders)->everyFiveMinutes();
 // Calculate settlements monthly on the 1st
 Schedule::job(new CalculateSettlement)->monthlyOn(1, '02:00');
 
-// Clear expired cache
-Schedule::command('cache:prune-stale-tags')->hourly();
+// Keep the failed_jobs table from growing forever
+Schedule::command('queue:prune-failed --hours=168')->daily()->at('03:00');
+
+// Process queued jobs without Supervisor: one worker at a time, exits when the queue is empty
+if (config('queue.scheduler_worker')) {
+    Schedule::command('queue:work --stop-when-empty --max-time=50 --timeout=60 --tries=3 --memory=128')
+        ->everyMinute()
+        ->withoutOverlapping(10)
+        ->runInBackground();
+}

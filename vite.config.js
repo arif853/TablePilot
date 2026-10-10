@@ -32,7 +32,8 @@ export default defineConfig(({ command }) => ({
         }),
     ],
     root: 'resources/js',
-    base: '/build/' ,
+    // Built assets are served from public/build; the dev server stays at the root so routes like /login work
+    base: command === 'build' ? '/build/' : '/',
     build: {
         outDir: '../../public/build',
         emptyOutDir: true,

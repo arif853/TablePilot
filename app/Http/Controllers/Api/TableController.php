@@ -121,7 +121,11 @@ class TableController extends BaseApiController
         $fromTable->markAvailable();
         $toTable->markOccupied();
 
-        broadcast(new TableTransferred($fromTable, $toTable))->toOthers();
+        try {
+            broadcast(new TableTransferred($fromTable, $toTable))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         AuditLogger::logAction('table_transferred', $fromTable, [
             'from_table_id' => $fromTable->id,

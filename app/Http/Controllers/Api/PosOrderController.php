@@ -53,7 +53,11 @@ class PosOrderController extends BaseApiController
                 source: 'pos',
             );
 
-            broadcast(new NewOrderCreated($order))->toOthers();
+            try {
+                broadcast(new NewOrderCreated($order))->toOthers();
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             return $this->created($order, 'POS order created successfully');
         } catch (\InvalidArgumentException $e) {

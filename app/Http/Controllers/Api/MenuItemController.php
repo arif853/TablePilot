@@ -85,7 +85,11 @@ class MenuItemController extends BaseApiController
 
         // Broadcast availability change
         if (isset($data['is_active']) && $oldActive !== $data['is_active']) {
-            broadcast(new MenuItemAvailabilityChanged($menuItem))->toOthers();
+            try {
+                broadcast(new MenuItemAvailabilityChanged($menuItem))->toOthers();
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $this->success($menuItem->fresh()->load('category'), 'Menu item updated');
@@ -119,7 +123,11 @@ class MenuItemController extends BaseApiController
 
         AuditLogger::logUpdated($menuItem->fresh(), $original);
 
-        broadcast(new MenuItemAvailabilityChanged($menuItem->fresh()))->toOthers();
+        try {
+            broadcast(new MenuItemAvailabilityChanged($menuItem->fresh()))->toOthers();
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $this->success($menuItem->fresh(), 'Availability toggled');
     }

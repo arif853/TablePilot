@@ -17,6 +17,12 @@ class CalculateSettlement implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 3;
+
+    public $timeout = 120;
+
+    public $backoff = 60;
+
     public function __construct(
         public ?int $tenantId = null,
         public ?string $periodStart = null,

@@ -18,6 +18,12 @@ class SendSubscriptionExpiryWarnings implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 3;
+
+    public $timeout = 120;
+
+    public $backoff = 60;
+
     /**
      * Send warning emails for subscriptions expiring in 1, 3, and 7 days.
      */

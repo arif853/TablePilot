@@ -102,6 +102,9 @@ CACHE_STORE=redis
 QUEUE_CONNECTION=redis
 SESSION_DRIVER=redis
 
+# Supervisor runs the workers, so don't also start one from the scheduler
+QUEUE_SCHEDULER_WORKER=false
+
 BROADCAST_CONNECTION=pusher
 PUSHER_APP_ID=your_pusher_id
 PUSHER_APP_KEY=your_pusher_key
@@ -198,7 +201,7 @@ sudo certbot --nginx -d yourdomain.com
 # /etc/supervisor/conf.d/restaurant-saas-worker.conf
 [program:restaurant-saas-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/restaurant-saas/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+command=php /var/www/restaurant-saas/artisan queue:work redis --sleep=3 --tries=3 --timeout=60 --max-time=3600 --memory=128
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -225,7 +228,11 @@ sudo supervisorctl start restaurant-saas-worker:*
 
 **Scheduled jobs:**
 - `CheckSubscriptionExpiry` — Daily at 00:05
+- `SendSubscriptionExpiryWarnings` — Daily at 09:00
+- `AutoCancelStaleOrders` — Every 5 minutes
 - `CalculateSettlement` — Monthly (1st) at 02:00
+- `queue:prune-failed` — Daily at 03:00 (keeps 7 days)
+- `queue:work` — Every minute, only when `QUEUE_SCHEDULER_WORKER=true` (cPanel; see below)
 
 ## 7. WebSocket Setup (Pusher)
 
@@ -472,13 +479,11 @@ php artisan migrate --force
 * * * * * cd /home/yourusername/restaurant-saas && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-3. Add another cron job to process queued jobs (since we can't use Supervisor):
+This single cron entry also processes the queue. The scheduler starts `queue:work --stop-when-empty` every minute, guarded by `withoutOverlapping()`, so **only one worker runs at a time** and it exits as soon as the queue is empty (`QUEUE_SCHEDULER_WORKER=true` is the default).
 
-```
-* * * * * cd /home/yourusername/restaurant-saas && php artisan queue:work database --stop-when-empty --max-time=55 >> /dev/null 2>&1
-```
+> ⚠️ **Do not add a separate `queue:work` cron job.** A plain cron entry has no overlap protection: if a job hangs (slow SMTP or Pusher call), cron keeps starting new workers every minute until the account hits its process/memory limits and the site goes down (503/508 errors). If you added one from an older version of this guide, remove it.
 
-> This runs the queue worker every minute, processes available jobs, and stops before the next cron triggers. Not as fast as Supervisor but works on shared hosting.
+Real-time events (new orders, status changes, table transfers, menu availability) are broadcast immediately during the request and don't go through the queue, so they arrive instantly even though the worker only starts once a minute.
 
 ### Step 11: PHP Version & Extensions
 
@@ -503,7 +508,7 @@ chmod -R 775 bootstrap/cache
 | Feature | VPS (Nginx) | cPanel (Apache) |
 |---------|-------------|-----------------|
 | Web server | Nginx | Apache + .htaccess |
-| Queue worker | Supervisor (persistent) | Cron every minute |
+| Queue worker | Supervisor (persistent) | Scheduler, one worker per minute |
 | Cache/Session | Redis | File-based |
 | PHP management | Manual install | MultiPHP Manager |
 | SSL | Certbot | AutoSSL |
@@ -529,9 +534,16 @@ chmod -R 775 bootstrap/cache
 - Confirm `index.html` references correct built asset filenames from `manifest.json`
 
 **Queue jobs not processing:**
-- Verify cron job is set up in cPanel
-- Check `php artisan queue:work` runs without error via SSH
-- Ensure `jobs` table exists: `php artisan queue:table && php artisan migrate`
+- Verify the `schedule:run` cron job is set up in cPanel
+- Check `php artisan schedule:list` shows the `queue:work` entry (it's hidden if `QUEUE_SCHEDULER_WORKER=false`)
+- Check `php artisan queue:work --stop-when-empty` runs without error via SSH
+- Ensure `jobs` and `cache_locks` tables exist: `php artisan migrate`
+- If a crashed worker left its overlap lock behind, it expires after 10 minutes, or clear it with `php artisan cache:clear`
+
+**Server slow / too many PHP processes:**
+- Check for stacked workers: `ps aux | grep "queue:work"` (there should be at most one)
+- Remove any old standalone `queue:work` cron entry (see Step 10)
+- Run `php -m | grep pcntl`: without the `pcntl` extension, `--timeout` can't kill a hung job
 
 **Storage/uploads not working:**
 - Verify symlink: `public_html/storage` → `restaurant-saas/storage/app/public`
