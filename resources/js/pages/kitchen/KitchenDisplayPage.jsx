@@ -135,11 +135,10 @@ export default function KitchenDisplayPage() {
     }, []);
 
     const toggleSound = () => {
-        setSoundOn((on) => {
-            try { localStorage.setItem(SOUND_KEY, on ? 'off' : 'on'); } catch { /* per-device preference only */ }
-            if (!on) playChime();
-            return !on;
-        });
+        const next = !soundOn;
+        setSoundOn(next);
+        try { localStorage.setItem(SOUND_KEY, next ? 'on' : 'off'); } catch { /* per-device preference only */ }
+        if (next) playChime();
     };
 
     const handleLogout = () => {

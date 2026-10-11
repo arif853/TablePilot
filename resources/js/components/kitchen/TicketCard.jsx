@@ -39,10 +39,14 @@ export default function TicketCard({ order, items, now, target, selected, onSele
 
     return (
         <article
-            className={`rounded-xl bg-white border transition cursor-pointer
+            className={`rounded-xl bg-white border transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
                 ${selected ? 'border-brand-500 ring-2 ring-brand-500/20 shadow-md' : 'border-gray-200/80 hover:border-gray-300 hover:shadow-sm'}
                 ${isReady ? 'opacity-80' : ''}`}
             onClick={() => onSelect(order)}
+            onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(order); } }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Order ${shortNumber(order.order_number)}`}
         >
             <div className="p-3">
                 <div className="flex items-start justify-between gap-2">

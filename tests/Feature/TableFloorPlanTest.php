@@ -121,3 +121,32 @@ test('an area cannot be renamed onto one that already exists', function () {
 
     $this->putJson('/api/tables/areas/rename', ['from' => 'Floor 1', 'to' => 'Terrace'], bearer($admin))->assertStatus(422);
 });
+
+test('tables far down a large floor can be saved', function () {
+    [$tenant, $admin] = restaurantWithAdmin();
+    $table = RestaurantTable::factory()->create(['tenant_id' => $tenant->id]);
+
+    // ~100 tables auto-placed in one area reach well past y = 2000
+    $this->putJson('/api/tables/layout', ['tables' => [['id' => $table->id, 'pos_x' => 30, 'pos_y' => 2410]]], bearer($admin))
+        ->assertOk();
+
+    expect($table->fresh()->pos_y)->toBe(2410);
+});
+
+test('positions past the editor canvas width are rejected', function () {
+    [$tenant, $admin] = restaurantWithAdmin();
+    $table = RestaurantTable::factory()->create(['tenant_id' => $tenant->id]);
+
+    // The editor canvas is 960 wide; anything further right would sit off the floor
+    $this->putJson('/api/tables/layout', ['tables' => [['id' => $table->id, 'pos_x' => 1100, 'pos_y' => 0]]], bearer($admin))
+        ->assertStatus(422);
+});
+
+test('an area can be renamed to the same name in a different case', function () {
+    [$tenant, $admin] = restaurantWithAdmin();
+    RestaurantTable::factory()->count(2)->create(['tenant_id' => $tenant->id, 'area' => 'terrace']);
+
+    $this->putJson('/api/tables/areas/rename', ['from' => 'terrace', 'to' => 'Terrace'], bearer($admin))->assertOk();
+
+    expect(RestaurantTable::where('tenant_id', $tenant->id)->pluck('area')->unique()->values()->all())->toBe(['Terrace']);
+});

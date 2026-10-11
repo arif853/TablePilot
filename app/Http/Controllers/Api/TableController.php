@@ -163,7 +163,8 @@ class TableController extends BaseApiController
             'to' => 'required|string|max:50|different:from',
         ]);
 
-        if (RestaurantTable::where('area', $validated['to'])->exists()) {
+        // Ignore the area being renamed, so "terrace" -> "Terrace" works on case-insensitive collations
+        if (RestaurantTable::where('area', $validated['to'])->where('area', '!=', $validated['from'])->exists()) {
             return $this->error('An area with that name already exists', 422);
         }
 

@@ -536,7 +536,9 @@ export default function OrdersPage() {
                                                 <tr
                                                     key={order.id}
                                                     onClick={() => openOrder(order)}
-                                                    className={`cursor-pointer transition hover:bg-brand-50/40 ${order.id === drawerId ? 'bg-brand-50/60' : ''} ${order.status === 'cancelled' ? 'opacity-60' : ''}`}
+                                                    onKeyDown={(e) => { if (e.target === e.currentTarget && e.key === 'Enter') openOrder(order); }}
+                                                    tabIndex={0}
+                                                    className={`cursor-pointer transition hover:bg-brand-50/40 focus:outline-none focus-visible:bg-brand-50/60 ${order.id === drawerId ? 'bg-brand-50/60' : ''} ${order.status === 'cancelled' ? 'opacity-60' : ''}`}
                                                 >
                                                     <td className="px-5 py-3"><OrderBadge order={order} /></td>
                                                     <td className="px-3 py-3 max-w-[9rem]"><WhereCell order={order} /></td>
@@ -554,7 +556,7 @@ export default function OrdersPage() {
                                 {/* Narrow screens: cards */}
                                 <ul className="lg:hidden divide-y divide-gray-100">
                                     {orders.map((order) => (
-                                        <li key={order.id} onClick={() => openOrder(order)} className={`p-4 cursor-pointer ${order.status === 'cancelled' ? 'opacity-60' : ''}`}>
+                                        <li key={order.id} onClick={() => openOrder(order)} onKeyDown={(e) => { if (e.target === e.currentTarget && e.key === 'Enter') openOrder(order); }} tabIndex={0} className={`p-4 cursor-pointer focus:outline-none focus-visible:bg-brand-50/60 ${order.status === 'cancelled' ? 'opacity-60' : ''}`}>
                                             <div className="flex items-start justify-between gap-2">
                                                 <OrderBadge order={order} />
                                                 <div className="flex items-center gap-1">

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { subscriptionAPI, brandingAPI, plansAPI, kitchenAPI } from '../../services/api';
-import { useModule } from '../../hooks/useModule';
+import { useModuleGate } from '../../hooks/useModule';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { HiOutlinePhotograph, HiOutlineTrash, HiOutlineUpload } from 'react-icons/hi';
@@ -567,7 +567,7 @@ function KitchenSettingsTab() {
 }
 
 export default function SettingsPage() {
-    const hasKitchen = useModule('kitchen_display');
+    const { hasAccess: hasKitchen, denied: noKitchen } = useModuleGate('kitchen_display');
     const tabs = [
         { id: 'branding', label: 'Branding' },
         { id: 'vat', label: 'VAT Settings' },
@@ -578,9 +578,13 @@ export default function SettingsPage() {
     // Deep links such as /dashboard/settings?tab=subscription (trial "Upgrade Now") open that tab
     const [searchParams] = useSearchParams();
     const requestedTab = searchParams.get('tab');
+    // "kitchen" is accepted before the module list has loaded; it falls back below if the plan lacks it
     const [activeTab, setActiveTab] = useState(
-        tabs.some((t) => t.id === requestedTab) ? requestedTab : 'branding'
+        tabs.some((t) => t.id === requestedTab) || requestedTab === 'kitchen' ? requestedTab : 'branding'
     );
+    useEffect(() => {
+        if (activeTab === 'kitchen' && noKitchen) setActiveTab('branding');
+    }, [activeTab, noKitchen]);
 
     return (
         <div>

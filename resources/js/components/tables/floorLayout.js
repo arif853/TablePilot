@@ -3,6 +3,7 @@
 
 export const FLOOR_WIDTH = 960;
 export const FLOOR_MIN_HEIGHT = 560;
+export const FLOOR_MAX_Y = 9800; // inside the API's pos_y bound (RestaurantTable::CANVAS_HEIGHT)
 export const SNAP = 10;
 export const DEFAULT_AREA = 'Main';
 
@@ -46,12 +47,18 @@ export function resolvePositions(tables, drafts = {}, { ignoreSaved = false } = 
     const pending = [];
 
     for (const table of tables) {
-        const spot = drafts[table.id] ?? (!ignoreSaved && table.pos_x != null && table.pos_y != null
+        const saved = drafts[table.id] ?? (!ignoreSaved && table.pos_x != null && table.pos_y != null
             ? { x: table.pos_x, y: table.pos_y }
             : null);
-        if (spot) {
+        if (saved) {
+            const size = footprint(table.capacity);
+            // A table given more seats since it was placed is wider now; keep it on the floor
+            const spot = {
+                x: Math.min(Math.max(0, saved.x), FLOOR_WIDTH - size.w),
+                y: Math.min(Math.max(0, saved.y), FLOOR_MAX_Y),
+            };
             positions[table.id] = spot;
-            placed.push({ ...spot, ...footprint(table.capacity) });
+            placed.push({ ...spot, ...size });
         } else {
             pending.push(table);
         }
@@ -70,6 +77,7 @@ export function resolvePositions(tables, drafts = {}, { ignoreSaved = false } = 
             };
             if (rect.x + rect.w > FLOOR_WIDTH - MARGIN / 2) continue;
             if (placed.some((p) => overlaps(rect, p))) continue;
+            rect.y = Math.min(rect.y, FLOOR_MAX_Y);
             positions[table.id] = { x: rect.x, y: rect.y };
             placed.push(rect);
             cell++;

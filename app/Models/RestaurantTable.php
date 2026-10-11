@@ -24,9 +24,10 @@ class RestaurantTable extends Model
         'pos_y',
     ];
 
-    // Bounds for pos_x / pos_y (the floor-plan editor's canvas fits inside these)
-    public const CANVAS_WIDTH = 1200;
-    public const CANVAS_HEIGHT = 2000;
+    // Bounds for pos_x / pos_y. The width is the editor's canvas (FLOOR_WIDTH in
+    // floorLayout.js); the canvas grows downwards, so the height only guards against junk.
+    public const CANVAS_WIDTH = 960;
+    public const CANVAS_HEIGHT = 10000;
 
     protected function casts(): array
     {

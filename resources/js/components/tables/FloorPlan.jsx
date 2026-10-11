@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FloorTable from './FloorTable';
-import { FLOOR_WIDTH, SNAP, floorHeight, footprint, snap } from './floorLayout';
+import { FLOOR_MAX_Y, FLOOR_WIDTH, SNAP, floorHeight, footprint, snap } from './floorLayout';
 
 const MIN_SCALE = 0.6; // below this tables get too small to tap; the canvas scrolls instead
-const MAX_Y = 1900; // keep within the API's position bounds
 const DRAG_THRESHOLD = 4; // px of movement before a press counts as a drag, not a tap
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -31,7 +30,7 @@ export default function FloorPlan({ tables, positions, editing, zoom = 1, select
 
     const constrain = (table, x, y) => {
         const size = footprint(table.capacity);
-        return { x: clamp(snap(x), 0, FLOOR_WIDTH - size.w), y: clamp(snap(y), 0, MAX_Y) };
+        return { x: clamp(snap(x), 0, FLOOR_WIDTH - size.w), y: clamp(snap(y), 0, FLOOR_MAX_Y) };
     };
 
     const handlePointerDown = (e, table) => {
@@ -49,7 +48,7 @@ export default function FloorPlan({ tables, positions, editing, zoom = 1, select
         if (!d.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         d.moved = true;
         // Follow the pointer smoothly; snapping happens on drop
-        setDrag({ id: d.table.id, x: clamp(d.x0 + dx / scale, 0, FLOOR_WIDTH - footprint(d.table.capacity).w), y: clamp(d.y0 + dy / scale, 0, MAX_Y) });
+        setDrag({ id: d.table.id, x: clamp(d.x0 + dx / scale, 0, FLOOR_WIDTH - footprint(d.table.capacity).w), y: clamp(d.y0 + dy / scale, 0, FLOOR_MAX_Y) });
     };
 
     const handlePointerUp = (e) => {
