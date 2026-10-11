@@ -51,22 +51,31 @@ export async function removeQueuedOrder(id) {
     await db.delete(STORE_QUEUE, id);
 }
 
+let syncing = false;
+
 export async function syncQueuedOrders(createOrderFn) {
-    if (!navigator.onLine) return { synced: 0, failed: 0 };
+    // Mount + the 'online' event (and StrictMode's double effect) can fire together; a
+    // second pass over the same queue would create every queued order twice.
+    if (!navigator.onLine || syncing) return { synced: 0, failed: 0 };
 
-    const queued = await listQueuedOrders();
-    let synced = 0;
-    let failed = 0;
+    syncing = true;
+    try {
+        const queued = await listQueuedOrders();
+        let synced = 0;
+        let failed = 0;
 
-    for (const item of queued) {
-        try {
-            await createOrderFn(item.payload);
-            await removeQueuedOrder(item.id);
-            synced += 1;
-        } catch {
-            failed += 1;
+        for (const item of queued) {
+            try {
+                await createOrderFn(item.payload);
+                await removeQueuedOrder(item.id);
+                synced += 1;
+            } catch {
+                failed += 1;
+            }
         }
-    }
 
-    return { synced, failed };
+        return { synced, failed };
+    } finally {
+        syncing = false;
+    }
 }

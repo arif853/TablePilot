@@ -150,6 +150,27 @@ class Tenant extends Model
             ->latest();
     }
 
+    /**
+     * The subscription that currently lets the tenant use the platform: a paid-up
+     * one, or one still inside its grace window. activeSubscription() is the
+     * strictly paid-up one; EnsureActiveSubscription already lets grace through,
+     * so module and POS gating must agree with it.
+     */
+    public function accessSubscription()
+    {
+        return $this->hasOne(Subscription::class)
+            ->where(function ($query) {
+                $query->where(fn ($active) => $active->where('status', 'active')->where('expires_at', '>=', today()))
+                    ->orWhere(fn ($grace) => $grace->where('status', 'grace')->where('grace_ends_at', '>=', now()));
+            })
+            ->latest();
+    }
+
+    public function hasServiceAccess(): bool
+    {
+        return $this->accessSubscription()->exists();
+    }
+
     // Helpers
     public function hasActiveSubscription(): bool
     {

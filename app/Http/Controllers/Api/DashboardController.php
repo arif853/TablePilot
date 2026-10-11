@@ -32,7 +32,9 @@ class DashboardController extends BaseApiController
     {
         $now = Carbon::now();
         $startOfMonth = $now->copy()->startOfMonth();
-        $lastMonth = $now->copy()->subMonth();
+        // Carbon is mutable: one shared instance would make startOfMonth()/endOfMonth() collapse to the same instant
+        $lastMonthStart = $now->copy()->subMonthNoOverflow()->startOfMonth();
+        $lastMonthEnd = $now->copy()->subMonthNoOverflow()->endOfMonth();
 
         // Basic tenant stats
         $totalTenants = Tenant::count();
@@ -56,12 +58,12 @@ class DashboardController extends BaseApiController
         // Churn rate: expired subscriptions in last 30 days / total subscriptions at start of period
         $expiredLastMonth = Subscription::withoutGlobalScopes()
             ->where('status', 'expired')
-            ->where('expires_at', '>=', $lastMonth->startOfMonth())
-            ->where('expires_at', '<=', $lastMonth->endOfMonth())
+            ->where('expires_at', '>=', $lastMonthStart)
+            ->where('expires_at', '<=', $lastMonthEnd)
             ->count();
 
         $totalSubsLastMonth = Subscription::withoutGlobalScopes()
-            ->where('created_at', '<', $lastMonth->endOfMonth())
+            ->where('created_at', '<', $lastMonthEnd)
             ->count();
 
         $churnRate = $totalSubsLastMonth > 0

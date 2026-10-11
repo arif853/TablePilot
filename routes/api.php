@@ -341,9 +341,9 @@ $v1Routes = function () {
 
             // Settlements
             Route::get('all-settlements', [SettlementController::class, 'allSettlements']);
-            Route::post('settlements/{id}/payment', [SettlementController::class, 'addPayment']);
 
-            // Admin Settlements (enhanced)
+            // Admin Settlements (enhanced). The payment route lives here only: a second
+            // `settlements/{id}/payment` registered earlier used to shadow recordPayment.
             Route::prefix('settlements')->group(function () {
                 Route::get('/', [\App\Http\Controllers\AdminSettlementController::class, 'index']);
                 Route::get('stats', [\App\Http\Controllers\AdminSettlementController::class, 'stats']);

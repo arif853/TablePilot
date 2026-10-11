@@ -62,7 +62,7 @@ class ModulePermissionService
         }
 
         // Check if module is in the subscription plan
-        $subscription = $tenant->activeSubscription()->first();
+        $subscription = $tenant->accessSubscription()->first();
 
         if (!$subscription || !$subscription->plan) {
             return false;
@@ -110,7 +110,7 @@ class ModulePermissionService
     public function getTenantModuleMatrix(Tenant $tenant): array
     {
         $modules = Module::ordered()->get();
-        $subscription = $tenant->activeSubscription()->first();
+        $subscription = $tenant->accessSubscription()->first();
         $planModuleIds = $subscription?->plan?->modules()->pluck('module_id')->toArray() ?? [];
 
         $overrides = $tenant->moduleOverrides()

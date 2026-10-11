@@ -1,6 +1,6 @@
 @extends('emails.layout')
 
-@section('content')
+@section('body')
 <h2 style="margin: 0 0 16px;">Restaurant application {{ $approved ? 'approved' : 'updated' }}</h2>
 
 <p style="margin: 0 0 12px;">Hi {{ $application->user->name }},</p>

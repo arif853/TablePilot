@@ -50,7 +50,7 @@ class Voucher extends Model
     public function scopeValid($query)
     {
         return $query->active()
-            ->where('expiry_date', '>=', now())
+            ->whereDate('expiry_date', '>=', today())
             ->where(function ($q) {
                 $q->whereNull('max_uses')
                     ->orWhereColumn('used_count', '<', 'max_uses');
@@ -61,14 +61,15 @@ class Voucher extends Model
     public function isValid(): bool
     {
         if (!$this->is_active) return false;
-        if ($this->expiry_date->isPast()) return false;
+        if ($this->isExpired()) return false;
         if ($this->max_uses && $this->used_count >= $this->max_uses) return false;
         return true;
     }
 
+    /** The expiry date is the last day the voucher works, not the first day it doesn't. */
     public function isExpired(): bool
     {
-        return $this->expiry_date->isPast();
+        return $this->expiry_date->copy()->endOfDay()->isPast();
     }
 
     public function calculateDiscount(float $subtotal): float

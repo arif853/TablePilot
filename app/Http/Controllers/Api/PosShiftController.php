@@ -62,14 +62,22 @@ class PosShiftController extends BaseApiController
             return $this->error('No open shift found', 422);
         }
 
-        $cashSales = Order::query()
+        $paidPosOrders = fn () => Order::query()
             ->where('source', 'pos')
-            ->where('payment_method', 'cash')
             ->where('payment_status', 'paid')
-            ->whereBetween('created_at', [$shift->opened_at, now()])
-            ->sum('grand_total');
+            ->whereBetween('created_at', [$shift->opened_at, now()]);
 
-        $expectedCash = round((float) $shift->opening_cash + (float) $cashSales, 2);
+        $cashSales = (float) $paidPosOrders()->where('payment_method', 'cash')->sum('grand_total');
+
+        // A split bill puts only some of its total in the drawer: the cash entries.
+        $cashSales += $paidPosOrders()
+            ->where('payment_method', 'split')
+            ->pluck('split_payment_details')
+            ->flatten(1)
+            ->where('method', 'cash')
+            ->sum('amount');
+
+        $expectedCash = round((float) $shift->opening_cash + $cashSales, 2);
         $closingCash = round((float) $data['closing_cash'], 2);
 
         $shift->update([

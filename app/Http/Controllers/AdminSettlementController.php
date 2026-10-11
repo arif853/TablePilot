@@ -169,7 +169,7 @@ class AdminSettlementController extends Controller
                 'settlement_id' => $settlement->id,
                 'amount' => $request->amount,
                 'payment_method' => $request->method,
-                'note' => $request->note,
+                'notes' => $request->note,
                 'paid_at' => now(),
             ]);
 

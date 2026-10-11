@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\RestaurantTable;
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
@@ -60,7 +61,9 @@ class BillingService
             $calcItems  = []; // For VAT service
 
             foreach ($data['items'] as $item) {
-                $menuItem = MenuItem::withoutGlobalScopes()
+                // Only the tenant scope is lifted (tenant is checked explicitly); the
+                // soft-delete scope must stay so a deleted item can't be ordered.
+                $menuItem = MenuItem::withoutGlobalScope(TenantScope::class)
                     ->where('tenant_id', $tenant->id)
                     ->where('id', $item['menu_item_id'])
                     ->where('is_active', true)

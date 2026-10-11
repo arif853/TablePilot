@@ -28,7 +28,7 @@ class TenantModuleController extends BaseApiController
         }
 
         $modules = $this->moduleService->getTenantModules($tenant);
-        $subscription = $tenant->activeSubscription()->first();
+        $subscription = $tenant->accessSubscription()->first();
 
         return $this->success([
             'modules' => $modules,
@@ -47,7 +47,7 @@ class TenantModuleController extends BaseApiController
         $tenant = Tenant::withoutGlobalScopes()->findOrFail($tenantId);
 
         $matrix = $this->moduleService->getTenantModuleMatrix($tenant);
-        $subscription = $tenant->activeSubscription()->first();
+        $subscription = $tenant->accessSubscription()->first();
 
         return $this->success([
             'tenant_id' => $tenant->id,

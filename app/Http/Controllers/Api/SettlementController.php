@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\BaseApiController;
 use App\Models\Settlement;
-use App\Models\SettlementPayment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,35 +29,6 @@ class SettlementController extends BaseApiController
         }
 
         return $this->success($settlement);
-    }
-
-    public function addPayment(Request $request, int $id): JsonResponse
-    {
-        $request->validate([
-            'amount' => 'required|numeric|min:0.01',
-            'payment_method' => 'nullable|string',
-            'payment_ref' => 'nullable|string',
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $settlement = Settlement::find($id);
-
-        if (!$settlement) {
-            return $this->notFound('Settlement not found');
-        }
-
-        SettlementPayment::create([
-            'settlement_id' => $settlement->id,
-            'amount' => $request->amount,
-            'payment_method' => $request->payment_method,
-            'payment_ref' => $request->payment_ref,
-            'paid_at' => now(),
-            'notes' => $request->notes,
-        ]);
-
-        $settlement->recalculate();
-
-        return $this->success($settlement->fresh()->load('payments'), 'Payment recorded');
     }
 
     /**

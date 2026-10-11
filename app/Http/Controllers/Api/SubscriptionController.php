@@ -7,6 +7,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Services\AuditLogger;
+use App\Services\ModulePermissionService;
 use App\Services\SslCommerzService;
 use App\Services\SubscriptionService;
 use Carbon\Carbon;
@@ -392,6 +393,10 @@ class SubscriptionController extends BaseApiController
 
         Tenant::where('id', $subscription->tenant_id)->update(['is_active' => true]);
 
+        if ($tenant = Tenant::find($subscription->tenant_id)) {
+            app(ModulePermissionService::class)->invalidateCache($tenant);
+        }
+
         AuditLogger::logUpdated($subscription, $original);
 
         return $this->success([
@@ -490,6 +495,9 @@ class SubscriptionController extends BaseApiController
 
             return $created;
         });
+
+        // A changed plan means a different module list; the cached one is good for an hour.
+        app(ModulePermissionService::class)->invalidateCache($tenant);
 
         return $this->created([
             'subscription' => $subscription->load(['tenant:id,name', 'plan:id,name,slug']),

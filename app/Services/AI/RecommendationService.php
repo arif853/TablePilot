@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -120,7 +121,7 @@ class RecommendationService
                 return [];
             }
 
-            return MenuItem::withoutGlobalScopes()
+            return MenuItem::withoutGlobalScope(TenantScope::class)
                 ->whereIn('id', $popularAtTime->keys())
                 ->where('is_active', true)
                 ->get()
@@ -149,7 +150,7 @@ class RecommendationService
 
             if ($popularIds->isEmpty()) {
                 // Fall back to random active items
-                return MenuItem::withoutGlobalScopes()
+                return MenuItem::withoutGlobalScope(TenantScope::class)
                     ->where('tenant_id', $this->tenantId)
                     ->where('is_active', true)
                     ->inRandomOrder()
@@ -159,7 +160,7 @@ class RecommendationService
                     ->toArray();
             }
 
-            return MenuItem::withoutGlobalScopes()
+            return MenuItem::withoutGlobalScope(TenantScope::class)
                 ->whereIn('id', $popularIds->keys())
                 ->where('is_active', true)
                 ->get()
@@ -201,7 +202,7 @@ class RecommendationService
             return [];
         }
 
-        return MenuItem::withoutGlobalScopes()
+        return MenuItem::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $this->tenantId)
             ->whereIn('id', $complementary->keys())
             ->where('is_active', true)
@@ -216,7 +217,7 @@ class RecommendationService
     protected function getAIRecommendations(array $cartItems, int $limit): array
     {
         // Get cart item names
-        $cartItemDetails = MenuItem::withoutGlobalScopes()
+        $cartItemDetails = MenuItem::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $this->tenantId)
             ->whereIn('id', collect($cartItems)->pluck('menu_item_id')->filter())
             ->get(['id', 'name', 'category_id'])
@@ -227,7 +228,7 @@ class RecommendationService
         }
 
         // Get available menu items
-        $availableItems = MenuItem::withoutGlobalScopes()
+        $availableItems = MenuItem::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $this->tenantId)
             ->where('is_active', true)
             ->whereNotIn('id', collect($cartItems)->pluck('menu_item_id')->filter())
@@ -307,7 +308,7 @@ PROMPT;
                 return [];
             }
 
-            return MenuItem::withoutGlobalScopes()
+            return MenuItem::withoutGlobalScope(TenantScope::class)
                 ->whereIn('id', $together->keys())
                 ->where('is_active', true)
                 ->get()
@@ -334,7 +335,7 @@ PROMPT;
         // Suggest items from complementary categories
         $complementaryCategories = $this->getComplementaryCategories($categoryId);
 
-        return MenuItem::withoutGlobalScopes()
+        return MenuItem::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $this->tenantId)
             ->where('is_active', true)
             ->whereIn('category_id', $complementaryCategories)

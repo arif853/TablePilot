@@ -171,6 +171,12 @@ class Order extends Model
         if (!$next) return false;
 
         $this->update(['status' => $next]);
+
+        // Reaching a terminal state must free the table, same as a manual status change.
+        if ($next === 'completed') {
+            $this->releaseResources();
+        }
+
         return true;
     }
 

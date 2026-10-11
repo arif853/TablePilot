@@ -43,12 +43,13 @@ class OrderController extends BaseApiController
             $query->today();
         }
 
+        // Whole days, so `to=2026-10-11` includes everything placed on the 11th
         if ($from = $request->get('from')) {
-            $query->where('created_at', '>=', $from);
+            $query->whereDate('created_at', '>=', $from);
         }
 
         if ($to = $request->get('to')) {
-            $query->where('created_at', '<=', $to);
+            $query->whereDate('created_at', '<=', $to);
         }
 
         if ($request->boolean('active')) {
@@ -170,6 +171,12 @@ class OrderController extends BaseApiController
 
         $oldStatus = $order->status;
         $newStatus = $request->status;
+
+        // Same rule as POST orders/{id}/cancel: kitchen users move orders forward but never cancel them.
+        $user = $request->user();
+        if ($newStatus === 'cancelled' && !$user->isSuperAdmin() && !$user->hasRole(User::ROLE_RESTAURANT_ADMIN, User::ROLE_STAFF)) {
+            return $this->error('Insufficient permissions.', 403);
+        }
 
         if (!$order->canTransitionTo($newStatus)) {
             return $this->error("Cannot change order from '{$oldStatus}' to '{$newStatus}'", 422);

@@ -6,6 +6,7 @@ use App\Models\AIConversation;
 use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\Order;
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Cache;
 
@@ -294,7 +295,7 @@ class CustomerChatbotService
     protected function getPopularItems(): string
     {
         return Cache::remember("popular_items:{$this->tenantId}", 600, function () {
-            $popularItems = MenuItem::withoutGlobalScopes()
+            $popularItems = MenuItem::withoutGlobalScope(TenantScope::class)
                 ->where('tenant_id', $this->tenantId)
                 ->where('is_active', true)
                 ->withCount(['orderItems as order_count' => function ($q) {

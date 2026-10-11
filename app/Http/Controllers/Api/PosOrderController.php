@@ -35,7 +35,7 @@ class PosOrderController extends BaseApiController
             return $this->error('Restaurant account is not active', 403);
         }
 
-        if ($tenant->isSubscriptionExpired()) {
+        if (!$tenant->hasServiceAccess()) {
             return $this->error('Subscription has expired', 402);
         }
 

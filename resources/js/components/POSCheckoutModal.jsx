@@ -80,36 +80,33 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
 
     async function placeOrder(payStatus) {
         setLoading(true);
+
+        // Built outside the try so the catch can queue it (a block-scoped const isn't visible there)
+        const payload = {
+            type:            cart.orderType,
+            table_id:        cart.tableId ?? undefined,
+            customer_name:   cart.customerName || undefined,
+            customer_phone:  cart.customerPhone || undefined,
+            delivery_address: cart.deliveryAddress || undefined,
+            notes:           cart.notes || undefined,
+            items: cart.items.map((i) => ({
+                menu_item_id:         i.menu_item_id,
+                qty:                  i.qty,
+                special_instructions: i.special_instructions || undefined,
+            })),
+            voucher_code:    cart.voucherCode || undefined,
+            payment_method:  paymentMethod,
+            payment_status:  payStatus,
+            transaction_id:  transactionId || undefined,
+            split_payments: paymentMethod === 'split'
+                ? splitRows.map((row) => ({ method: row.method, amount: parseFloat(row.amount || 0) }))
+                : undefined,
+        };
+
+        let order;
         try {
-            const payload = {
-                type:            cart.orderType,
-                table_id:        cart.tableId ?? undefined,
-                customer_name:   cart.customerName || undefined,
-                customer_phone:  cart.customerPhone || undefined,
-                delivery_address: cart.deliveryAddress || undefined,
-                notes:           cart.notes || undefined,
-                items: cart.items.map((i) => ({
-                    menu_item_id:         i.menu_item_id,
-                    qty:                  i.qty,
-                    special_instructions: i.special_instructions || undefined,
-                })),
-                voucher_code:    cart.voucherCode || undefined,
-                payment_method:  paymentMethod,
-                payment_status:  payStatus,
-                transaction_id:  transactionId || undefined,
-                split_payments: paymentMethod === 'split'
-                    ? splitRows.map((row) => ({ method: row.method, amount: parseFloat(row.amount || 0) }))
-                    : undefined,
-            };
-
             const res = await posAPI.createOrder(payload);
-            const order = res.data?.data;
-
-            // Fetch invoice data (includes restaurant info)
-            const invRes = await orderAPI.invoice(order.order_number);
-            setInvoiceData(invRes.data?.data ?? { order, restaurant: null });
-
-            toast.success('Order created!');
+            order = res.data?.data;
         } catch (err) {
             if (!navigator.onLine || !err.response) {
                 await queueOfflineOrder(payload);
@@ -121,6 +118,17 @@ export default function POSCheckoutModal({ cart, totals, onSuccess, onClose }) {
             const msg = err.response?.data?.message ?? 'Failed to create order';
             toast.error(msg);
             setLoading(false);
+            return;
+        }
+
+        // The sale exists from here on. A failed invoice fetch must never queue or
+        // resubmit it, or the customer is charged twice on the next sync.
+        toast.success('Order created!');
+        try {
+            const invRes = await orderAPI.invoice(order.order_number);
+            setInvoiceData(invRes.data?.data ?? { order, restaurant: null });
+        } catch {
+            setInvoiceData({ order, restaurant: null });
         }
     }
 

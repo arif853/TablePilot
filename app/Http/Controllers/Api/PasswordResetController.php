@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\BaseApiController;
 use App\Mail\PasswordResetMail;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,8 @@ class PasswordResetController extends BaseApiController
         }
 
         // Check token expiry (60 minutes)
-        if (now()->diffInMinutes($record->created_at) > 60) {
+        // (Carbon 3: now()->diffInMinutes($past) is negative, so it can never exceed 60)
+        if (Carbon::parse($record->created_at)->addMinutes(60)->isPast()) {
             DB::table('password_reset_tokens')->where('email', $request->email)->delete();
             return $this->error('Reset token has expired. Please request a new one.', 422);
         }

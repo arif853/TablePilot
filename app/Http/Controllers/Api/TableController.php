@@ -71,6 +71,14 @@ class TableController extends BaseApiController
             return $this->notFound('Table not found');
         }
 
+        $duplicate = RestaurantTable::where('table_number', $request->table_number)
+            ->where('id', '!=', $table->id)
+            ->exists();
+
+        if ($duplicate) {
+            return $this->error('Table number already exists', 422);
+        }
+
         $original = $table->toArray();
         $table->update($request->validated());
 

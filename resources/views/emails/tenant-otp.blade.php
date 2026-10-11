@@ -1,6 +1,6 @@
 @extends('emails.layout')
 
-@section('content')
+@section('body')
 <h2 style="margin: 0 0 16px;">Verify your email</h2>
 
 <p style="margin: 0 0 12px;">Hi {{ $user->name }},</p>

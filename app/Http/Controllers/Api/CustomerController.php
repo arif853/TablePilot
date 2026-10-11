@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BaseApiController;
 use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\RestaurantTable;
+use App\Models\Scopes\TenantScope;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,7 +67,7 @@ class CustomerController extends BaseApiController
             ->get();
 
         // Also get uncategorized items
-        $uncategorized = MenuItem::withoutGlobalScopes()
+        $uncategorized = MenuItem::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->whereNull('category_id')

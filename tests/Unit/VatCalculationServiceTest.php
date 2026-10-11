@@ -14,7 +14,7 @@ test('vat exclusive: calculates correct totals for simple order', function () {
         ['price' => '50.00', 'qty' => 3],  // 150
     ];
 
-    $result = $this->service->computeTotals($items, 5.00, false, 0);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, false, 0);
 
     expect($result['subtotal'])->toBe('350.00')
         ->and($result['discount'])->toBe('0.00')
@@ -30,7 +30,7 @@ test('vat exclusive: calculates with discount', function () {
         ['price' => '100.00', 'qty' => 1],
     ];
 
-    $result = $this->service->computeTotals($items, 5.00, false, 50.00);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, false, 50.00);
 
     // subtotal=300, discount=50, net=250, vat=12.50, grand=262.50
     expect($result['subtotal'])->toBe('300.00')
@@ -43,7 +43,7 @@ test('vat exclusive: calculates with discount', function () {
 test('vat exclusive: zero vat rate means no vat', function () {
     $items = [['price' => '500.00', 'qty' => 1]];
 
-    $result = $this->service->computeTotals($items, 0.00, false, 0);
+    $result = $this->service->computeTotals($items, 0.00, 0.00, false, 0);
 
     expect($result['vat_amount'])->toBe('0.00')
         ->and($result['grand_total'])->toBe('500.00');
@@ -52,7 +52,7 @@ test('vat exclusive: zero vat rate means no vat', function () {
 test('vat exclusive: zero discount', function () {
     $items = [['price' => '100.00', 'qty' => 1]];
 
-    $result = $this->service->computeTotals($items, 5.00, false, 0);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, false, 0);
 
     expect($result['discount'])->toBe('0.00')
         ->and($result['net_amount'])->toBe('100.00')
@@ -63,7 +63,7 @@ test('vat exclusive: zero discount', function () {
 test('vat exclusive: full discount equals subtotal', function () {
     $items = [['price' => '100.00', 'qty' => 1]];
 
-    $result = $this->service->computeTotals($items, 5.00, false, 100.00);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, false, 100.00);
 
     expect($result['net_amount'])->toBe('0.00')
         ->and($result['vat_amount'])->toBe('0.00')
@@ -76,7 +76,7 @@ test('vat inclusive: calculates correct totals', function () {
     // Items priced at 105 each (includes 5% VAT)
     $items = [['price' => '105.00', 'qty' => 2]]; // subtotal = 210
 
-    $result = $this->service->computeTotals($items, 5.00, true, 0);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, true, 0);
 
     // net_amount (VAT-inclusive) = 210
     // vat = 210 * (5 / 105) = 10.00
@@ -91,7 +91,7 @@ test('vat inclusive: calculates correct totals', function () {
 test('vat inclusive: with discount', function () {
     $items = [['price' => '210.00', 'qty' => 1]]; // subtotal = 210
 
-    $result = $this->service->computeTotals($items, 5.00, true, 10.00);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, true, 10.00);
 
     // subtotal=210, discount=10, net_before_vat_extraction=200
     // vat = 200 * (5 / 105) = 9.52
@@ -107,7 +107,7 @@ test('vat inclusive: with discount', function () {
 test('vat inclusive: full discount yields zero', function () {
     $items = [['price' => '100.00', 'qty' => 1]];
 
-    $result = $this->service->computeTotals($items, 5.00, true, 100.00);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, true, 100.00);
 
     expect($result['net_amount'])->toBe('0.00')
         ->and($result['vat_amount'])->toBe('0.00')
@@ -119,19 +119,19 @@ test('vat inclusive: full discount yields zero', function () {
 test('discount exceeding subtotal throws exception', function () {
     $items = [['price' => '100.00', 'qty' => 1]];
 
-    $this->service->computeTotals($items, 5.00, false, 150.00);
+    $this->service->computeTotals($items, 5.00, 0.00, false, 150.00);
 })->throws(InvalidArgumentException::class, 'Discount cannot exceed subtotal.');
 
 test('negative discount throws exception', function () {
     $items = [['price' => '100.00', 'qty' => 1]];
 
-    $this->service->computeTotals($items, 5.00, false, -10.00);
+    $this->service->computeTotals($items, 5.00, 0.00, false, -10.00);
 })->throws(InvalidArgumentException::class, 'Discount cannot be negative.');
 
 test('large order amounts use precise decimal math', function () {
     $items = [['price' => '99999.99', 'qty' => 100]];
 
-    $result = $this->service->computeTotals($items, 5.00, false, 0);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, false, 0);
 
     // subtotal = 9999999.00
     expect($result['subtotal'])->toBe('9999999.00')
@@ -142,7 +142,7 @@ test('large order amounts use precise decimal math', function () {
 test('fractional vat rate calculates correctly', function () {
     $items = [['price' => '100.00', 'qty' => 1]];
 
-    $result = $this->service->computeTotals($items, 7.50, false, 0);
+    $result = $this->service->computeTotals($items, 7.50, 0.00, false, 0);
 
     // vat = 100 * 7.5 / 100 = 7.50
     expect($result['vat_amount'])->toBe('7.50')
@@ -152,7 +152,7 @@ test('fractional vat rate calculates correctly', function () {
 test('single item single quantity', function () {
     $items = [['price' => '55.50', 'qty' => 1]];
 
-    $result = $this->service->computeTotals($items, 5.00, false, 0);
+    $result = $this->service->computeTotals($items, 5.00, 0.00, false, 0);
 
     // vat = 55.50 * 0.05 = 2.775 → 2.77 (bcmath truncation)
     expect($result['subtotal'])->toBe('55.50')
@@ -161,9 +161,40 @@ test('single item single quantity', function () {
 });
 
 test('empty items array yields zero totals', function () {
-    $result = $this->service->computeTotals([], 5.00, false, 0);
+    $result = $this->service->computeTotals([], 5.00, 0.00, false, 0);
 
     expect($result['subtotal'])->toBe('0.00')
         ->and($result['vat_amount'])->toBe('0.00')
         ->and($result['grand_total'])->toBe('0.00');
+});
+
+// ─── Supplementary Duty (SD) ──────────────────────────────────────────────────
+
+test('sd exclusive: sd is added on top and reported separately', function () {
+    $items = [['price' => '100.00', 'qty' => 2]]; // 200
+
+    $result = $this->service->computeTotals($items, 5.00, 10.00, false, 0);
+
+    expect($result['sd_rate'])->toBe('10.00')
+        ->and($result['sd_amount'])->toBe('20.00')
+        ->and($result['vat_amount'])->toBe('10.00')
+        ->and(bcadd($result['net_amount'], bcadd($result['vat_amount'], $result['sd_amount'], 2), 2))
+        ->toBe($result['grand_total']);
+});
+
+test('sd inclusive: vat and sd are extracted from the price', function () {
+    $items = [['price' => '115.00', 'qty' => 1]];
+
+    $result = $this->service->computeTotals($items, 5.00, 10.00, true, 0);
+
+    expect($result['net_amount'])->toBe('100.00')
+        ->and($result['vat_amount'])->toBe('5.00')
+        ->and($result['sd_amount'])->toBe('10.00')
+        ->and($result['grand_total'])->toBe('115.00');
+});
+
+test('zero sd rate leaves sd amount at zero', function () {
+    $result = $this->service->computeTotals([['price' => '100.00', 'qty' => 1]], 5.00, 0.00, false, 0);
+
+    expect($result['sd_amount'])->toBe('0.00');
 });
