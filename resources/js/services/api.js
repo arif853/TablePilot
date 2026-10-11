@@ -197,6 +197,8 @@ export const kitchenAPI = {
     ordersByStatus: (status) => api.get(`/kitchen/orders/${status}`),
     advanceOrder: (id) => api.post(`/kitchen/orders/${id}/advance`),
     stats: () => api.get('/kitchen/stats'),
+    settings: () => api.get('/kitchen/settings'),
+    updateSettings: (data) => api.put('/kitchen/settings', data),
 };
 
 // Reports

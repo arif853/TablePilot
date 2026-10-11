@@ -65,8 +65,19 @@ class Order extends Model
             'tax' => 'decimal:2',
             'grand_total' => 'decimal:2',
             'paid_at' => 'datetime',
+            'ready_at' => 'datetime',
             'split_payment_details' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Stamp the moment the kitchen finishes, whichever screen moved it to "ready"
+        static::saving(function (Order $order) {
+            if ($order->isDirty('status') && $order->status === 'ready' && !$order->ready_at) {
+                $order->ready_at = now();
+            }
+        });
     }
 
     public const STATUS_FLOW = [

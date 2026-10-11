@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { subscriptionAPI, brandingAPI, plansAPI } from '../../services/api';
+import { subscriptionAPI, brandingAPI, plansAPI, kitchenAPI } from '../../services/api';
+import { useModule } from '../../hooks/useModule';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { HiOutlinePhotograph, HiOutlineTrash, HiOutlineUpload } from 'react-icons/hi';
@@ -454,10 +455,123 @@ function VatSettingsTab() {
     );
 }
 
+// Kept in step with KitchenController::MIN/MAX_TARGET_MINUTES
+const KITCHEN_TARGET_MIN = 5;
+const KITCHEN_TARGET_MAX = 120;
+const KITCHEN_TARGET_PRESETS = [10, 15, 20, 30, 45];
+
+function KitchenSettingsTab() {
+    const queryClient = useQueryClient();
+    const [target, setTarget] = useState('');
+
+    const { data, isLoading } = useQuery({
+        queryKey: ['kitchen-settings'],
+        queryFn: () => kitchenAPI.settings().then((r) => r.data.data),
+    });
+
+    useEffect(() => {
+        if (data) setTarget(String(data.target_minutes));
+    }, [data]);
+
+    const mutation = useMutation({
+        mutationFn: (minutes) => kitchenAPI.updateSettings({ target_minutes: minutes }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['kitchen-settings'] });
+            queryClient.invalidateQueries({ queryKey: ['kitchen-stats'] });
+            toast.success('Kitchen settings updated!');
+        },
+        onError: (err) => toast.error(err.response?.data?.message || 'Failed to update'),
+    });
+
+    if (isLoading) return <LoadingSpinner />;
+
+    const minutes = Number(target);
+    const valid = target !== '' && Number.isInteger(minutes) && minutes >= KITCHEN_TARGET_MIN && minutes <= KITCHEN_TARGET_MAX;
+    // The kitchen screen turns a ticket amber at half the target and red once it is past it
+    const half = valid ? Math.floor(minutes / 2) : null;
+
+    return (
+        <form onSubmit={(e) => { e.preventDefault(); if (valid) mutation.mutate(minutes); }} className="space-y-6">
+            <div className="card">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Kitchen Target Time</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                    How long a ticket may take from order to ready. The kitchen screen colours tickets by this time,
+                    counts late orders as delayed, and measures the on-time rate against it.
+                </p>
+
+                <div className="space-y-5">
+                    <div>
+                        <label className="label" htmlFor="kitchen-target">Target time (minutes)</label>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <input
+                                id="kitchen-target"
+                                type="number"
+                                className="input w-32"
+                                value={target}
+                                onChange={(e) => setTarget(e.target.value)}
+                                min={KITCHEN_TARGET_MIN}
+                                max={KITCHEN_TARGET_MAX}
+                                step={1}
+                                required
+                            />
+                            {KITCHEN_TARGET_PRESETS.map((preset) => (
+                                <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => setTarget(String(preset))}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
+                                        minutes === preset
+                                            ? 'bg-brand-50 border-brand-300 text-brand-800'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                    }`}
+                                >
+                                    {preset} min
+                                </button>
+                            ))}
+                        </div>
+                        <p className={`text-xs mt-1 ${valid || target === '' ? 'text-gray-400' : 'text-red-600'}`}>
+                            Between {KITCHEN_TARGET_MIN} and {KITCHEN_TARGET_MAX} minutes.
+                        </p>
+                    </div>
+
+                    {/* Preview */}
+                    {valid && (
+                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-sm font-medium text-gray-800 mb-3">How tickets will look on the kitchen screen</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <span className="badge bg-emerald-50 text-emerald-700 ring-emerald-600/20">0–{Math.max(0, half - 1)} min</span>
+                                    <span className="text-gray-600">On track</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="badge bg-amber-50 text-amber-800 ring-amber-600/20">{half}–{minutes - 1} min</span>
+                                    <span className="text-gray-600">Getting long</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="badge bg-red-50 text-red-700 ring-red-600/20">{minutes}+ min</span>
+                                    <span className="text-gray-600">Delayed</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex justify-end">
+                <button type="submit" disabled={mutation.isPending || !valid} className="btn-primary px-8">
+                    {mutation.isPending ? 'Saving...' : 'Save Kitchen Settings'}
+                </button>
+            </div>
+        </form>
+    );
+}
+
 export default function SettingsPage() {
+    const hasKitchen = useModule('kitchen_display');
     const tabs = [
         { id: 'branding', label: 'Branding' },
         { id: 'vat', label: 'VAT Settings' },
+        ...(hasKitchen ? [{ id: 'kitchen', label: 'Kitchen' }] : []),
         { id: 'subscription', label: 'Subscription' },
     ];
 
@@ -491,6 +605,7 @@ export default function SettingsPage() {
 
             {activeTab === 'branding' && <BrandingTab />}
             {activeTab === 'vat' && <VatSettingsTab />}
+            {activeTab === 'kitchen' && hasKitchen && <KitchenSettingsTab />}
             {activeTab === 'subscription' && <SubscriptionTab />}
         </div>
     );

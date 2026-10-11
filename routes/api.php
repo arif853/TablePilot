@@ -239,6 +239,10 @@ $v1Routes = function () {
                 Route::get('orders/{status}', [KitchenController::class, 'ordersByStatus']);
                 Route::post('orders/{id}/advance', [KitchenController::class, 'advanceOrder']);
                 Route::get('stats', [KitchenController::class, 'stats']);
+                Route::middleware('role:restaurant_admin')->group(function () {
+                    Route::get('settings', [KitchenController::class, 'settings']);
+                    Route::put('settings', [KitchenController::class, 'updateSettings']);
+                });
             });
 
             // Reports

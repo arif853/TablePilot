@@ -46,6 +46,7 @@ class Tenant extends Model
         'default_vat_rate',
         'default_sd_rate',
         'vat_inclusive',
+        'kitchen_target_minutes',
         'is_active',
         'max_users',
         'trial_ends_at',
@@ -62,6 +63,7 @@ class Tenant extends Model
             'vat_inclusive' => 'boolean',
             'is_active' => 'boolean',
             'max_users' => 'integer',
+            'kitchen_target_minutes' => 'integer',
             'social_links' => 'array',
             'trial_ends_at' => 'datetime',
         ];
