@@ -19,12 +19,23 @@ class RestaurantTable extends Model
         'qr_code',
         'status',
         'capacity',
+        'area',
+        'pos_x',
+        'pos_y',
     ];
+
+    // Bounds for pos_x / pos_y (the floor-plan editor's canvas fits inside these)
+    public const CANVAS_WIDTH = 1200;
+    public const CANVAS_HEIGHT = 2000;
 
     protected function casts(): array
     {
         return [
             'capacity' => 'integer',
+            'pos_x' => 'integer',
+            'pos_y' => 'integer',
+            // Filled by withMin() on the table list; cast so it serialises as ISO 8601 with a timezone
+            'active_orders_min_created_at' => 'datetime',
         ];
     }
 

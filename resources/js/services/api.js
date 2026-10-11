@@ -155,6 +155,7 @@ export const categoryAPI = {
 // Tables
 export const tableAPI = {
     list: (params) => api.get('/tables', { params }),
+    show: (id) => api.get(`/tables/${id}`),
     create: (data) => api.post('/tables', data),
     update: (id, data) => api.put(`/tables/${id}`, data),
     delete: (id) => api.delete(`/tables/${id}`),
@@ -162,6 +163,8 @@ export const tableAPI = {
     qrCode: (id) => api.get(`/tables/${id}/qr`),
     parcelQr: () => api.get('/tables/parcel-qr'),
     qrCodes: () => api.get('/tables/qr-codes'),
+    saveLayout: (tables) => api.put('/tables/layout', { tables }),
+    renameArea: (from, to) => api.put('/tables/areas/rename', { from, to }),
 };
 
 // Vouchers

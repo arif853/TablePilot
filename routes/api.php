@@ -217,6 +217,9 @@ $v1Routes = function () {
                 Route::patch('menu-items/{id}/toggle', [MenuItemController::class, 'toggleAvailability']);
                 Route::post('menu-items/{id}/restore', [MenuItemController::class, 'restore']);
                 Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
+                // Before the resource so "layout" / "areas" aren't read as a table id
+                Route::put('tables/layout', [TableController::class, 'saveLayout']);
+                Route::put('tables/areas/rename', [TableController::class, 'renameArea']);
                 Route::apiResource('tables', TableController::class)->only(['store', 'update', 'destroy']);
                 Route::middleware('module:voucher_system')->apiResource('vouchers', VoucherController::class);
             });

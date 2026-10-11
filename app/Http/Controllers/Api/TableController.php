@@ -12,13 +12,17 @@ use App\Models\Tenant;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class TableController extends BaseApiController
 {
     public function index(Request $request): JsonResponse
     {
-        $query = RestaurantTable::withCount('activeOrders');
+        // Running bill and seated-since time drive the floor plan without a request per table
+        $query = RestaurantTable::withCount('activeOrders')
+            ->withSum('activeOrders', 'grand_total')
+            ->withMin('activeOrders', 'created_at');
 
         if ($status = $request->get('status')) {
             $query->where('status', $status);
@@ -44,6 +48,7 @@ class TableController extends BaseApiController
             'table_number' => $request->table_number,
             'capacity' => $request->capacity ?? 4,
             'status' => $request->status ?? 'available',
+            'area' => $request->area ?: 'Main',
             'qr_code' => $this->generateQrIdentifier($tenantId, $request->table_number),
         ]);
 
@@ -54,7 +59,7 @@ class TableController extends BaseApiController
 
     public function show(int $id): JsonResponse
     {
-        $table = RestaurantTable::with(['activeOrders.items.menuItem'])->find($id);
+        $table = RestaurantTable::with(['activeOrders.items.menuItem', 'activeOrders.servedBy:id,name'])->find($id);
 
         if (!$table) {
             return $this->notFound('Table not found');
@@ -79,8 +84,19 @@ class TableController extends BaseApiController
             return $this->error('Table number already exists', 422);
         }
 
+        $data = $request->validated();
+        if (array_key_exists('area', $data)) {
+            if (blank($data['area'])) {
+                unset($data['area']);
+            } elseif ($data['area'] !== $table->area) {
+                // Its spot on the old floor means nothing on the new one; let it auto-place
+                $data['pos_x'] = null;
+                $data['pos_y'] = null;
+            }
+        }
+
         $original = $table->toArray();
-        $table->update($request->validated());
+        $table->update($data);
 
         AuditLogger::logUpdated($table, $original);
 
@@ -104,6 +120,62 @@ class TableController extends BaseApiController
         $table->delete();
 
         return $this->success(null, 'Table deleted');
+    }
+
+    /**
+     * Save where tables sit on the floor plan, from the drag-and-drop editor.
+     */
+    public function saveLayout(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tables' => 'required|array|max:500',
+            'tables.*.id' => 'required|integer|distinct',
+            'tables.*.pos_x' => 'required|integer|min:0|max:' . RestaurantTable::CANVAS_WIDTH,
+            'tables.*.pos_y' => 'required|integer|min:0|max:' . RestaurantTable::CANVAS_HEIGHT,
+        ]);
+
+        $positions = collect($validated['tables'])->keyBy('id');
+        // Tenant-scoped, so another restaurant's table ids are simply not found
+        $tables = RestaurantTable::whereIn('id', $positions->keys())->get();
+
+        if ($tables->count() !== $positions->count()) {
+            return $this->error('One or more tables were not found', 422);
+        }
+
+        DB::transaction(function () use ($tables, $positions) {
+            foreach ($tables as $table) {
+                $table->update([
+                    'pos_x' => $positions[$table->id]['pos_x'],
+                    'pos_y' => $positions[$table->id]['pos_y'],
+                ]);
+            }
+        });
+
+        AuditLogger::logAction('table_layout_saved', null, ['tables' => $tables->count()]);
+
+        return $this->success(null, 'Layout saved');
+    }
+
+    public function renameArea(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => 'required|string|max:50',
+            'to' => 'required|string|max:50|different:from',
+        ]);
+
+        if (RestaurantTable::where('area', $validated['to'])->exists()) {
+            return $this->error('An area with that name already exists', 422);
+        }
+
+        $renamed = RestaurantTable::where('area', $validated['from'])->update(['area' => $validated['to']]);
+
+        if (!$renamed) {
+            return $this->notFound('Area not found');
+        }
+
+        AuditLogger::logAction('table_area_renamed', null, $validated);
+
+        return $this->success(['area' => $validated['to']], 'Area renamed');
     }
 
     public function transfer(TransferTableRequest $request): JsonResponse
@@ -171,7 +243,7 @@ class TableController extends BaseApiController
         $tenant = Tenant::find(auth()->user()->tenant_id);
 
         $cards = RestaurantTable::orderBy('table_number')->get()->map(fn (RestaurantTable $table) => [
-            'table' => $table->only(['id', 'table_number', 'capacity']),
+            'table' => $table->only(['id', 'table_number', 'capacity', 'area']),
             'qr_url' => $this->tableQrUrl($table, $tenant),
         ]);
 

@@ -73,6 +73,8 @@ class DemoRestaurantSeeder extends Seeder
                     'table_number' => $number,
                     'qr_code' => 'TBL-' . $tenant->id . '-' . $number . '-' . Str::upper(Str::random(6)),
                     'capacity' => $capacity,
+                    // Big tables sit outside so the demo floor plan has more than one area
+                    'area' => $capacity >= 6 ? 'Terrace' : 'Main Hall',
                     'status' => 'available',
                 ]);
             }

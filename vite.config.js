@@ -44,20 +44,20 @@ export default defineConfig(({ command }) => ({
         port: 3000,
         proxy: {
             '/api': {
-                target: 'http://backend.test',
+                target: 'http://tablepilot.test/',
                 changeOrigin: true,
             },
             // Static images live in Laravel's public/ (Vite's root is resources/js)
             '/assets': {
-                target: 'http://backend.test',
+                target: 'http://tablepilot.test/',
                 changeOrigin: true,
             },
             '/storage': {
-                target: 'http://backend.test',
+                target: 'http://tablepilot.test/',
                 changeOrigin: true,
             },
             '/broadcasting': {
-                target: 'http://backend.test',
+                target: 'http://tablepilot.test/',
                 changeOrigin: true,
             },
         },
