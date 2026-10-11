@@ -31,7 +31,7 @@ class PaymentController extends BaseApiController
         $result = $this->processSubscriptionPayment($request, 'sslcommerz');
         $status = $result['ok'] ? 'success' : 'failed';
 
-        return redirect(rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/subscription?status=' . $status);
+        return redirect(rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/settings?tab=subscription&status=' . $status);
     }
 
     public function bkashSubscriptionCallback(Request $request): JsonResponse
@@ -196,7 +196,7 @@ class PaymentController extends BaseApiController
 
         return $this->success([
             'subscription_id' => $result['subscription']->id,
-            'redirect_url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/subscription?status=success',
+            'redirect_url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/dashboard/settings?tab=subscription&status=success',
         ], $result['message']);
     }
 

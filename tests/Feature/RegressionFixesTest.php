@@ -253,6 +253,10 @@ test('a new restaurant can register, verify, get approved and log in', function 
     Mail::assertSent(TenantOtpMail::class, function ($mail) use (&$code) {
         $code = $mail->code;
 
+        // The email body must actually contain the code (a template/layout section
+        // mismatch once sent mails with only the header and footer).
+        $mail->assertSeeInHtml($code);
+
         return true;
     });
 
@@ -297,6 +301,63 @@ test('a table can keep its own number when other fields change', function () {
         ->assertOk();
 
     expect($table->fresh()->capacity)->toBe(6);
+});
+
+// ─── Trial → paid upgrade ───────────────────────────────────────────
+
+/** A restaurant four days into a 14-day free trial. */
+function restaurantOnTrial(): array
+{
+    $plan = SubscriptionPlan::factory()->create(['is_active' => true, 'duration_days' => 30]);
+    $plan->modules()->sync(\App\Models\Module::pluck('id'));
+    $tenant = \App\Models\Tenant::factory()->create();
+    app(\App\Services\SubscriptionService::class)->createTrialSubscription($tenant, $plan, 14);
+    $admin = User::factory()->restaurantAdmin()->create(['tenant_id' => $tenant->id]);
+
+    return [$tenant->fresh(), $admin, $plan];
+}
+
+test('upgrading during the trial ends the trial flag but keeps the remaining trial days', function () {
+    [$tenant, , $plan] = restaurantOnTrial();
+    expect($tenant->isOnTrial())->toBeTrue();
+    $trialEnd = $tenant->trial_ends_at->copy();
+
+    $paid = app(\App\Services\SubscriptionService::class)->createSubscription(
+        tenant: $tenant,
+        plan: $plan,
+        paymentData: ['amount' => $plan->price, 'payment_method' => 'sslcommerz', 'transaction_id' => 'SUB-TEST-1'],
+        initiatedBy: 'tenant',
+    );
+
+    $tenant = $tenant->fresh();
+
+    // No more "Free trial / Upgrade Now" banner after paying…
+    expect($tenant->isOnTrial())->toBeFalse()
+        ->and($tenant->trial_ends_at)->toBeNull()
+        ->and($tenant->hasActiveSubscription())->toBeTrue();
+
+    // …and the unused trial days are not lost: the paid term starts when the trial ends.
+    expect($paid->starts_at->isSameDay($trialEnd))->toBeTrue()
+        ->and($paid->expires_at->isSameDay($trialEnd->copy()->addDays(30)))->toBeTrue();
+});
+
+test('after upgrading mid-trial the subscription endpoint reports an active paid plan', function () {
+    [$tenant, $admin, $plan] = restaurantOnTrial();
+
+    app(\App\Services\SubscriptionService::class)->createSubscription(
+        tenant: $tenant,
+        plan: $plan,
+        paymentData: ['amount' => $plan->price, 'payment_method' => 'sslcommerz', 'transaction_id' => 'SUB-TEST-2'],
+        initiatedBy: 'tenant',
+    );
+
+    getJson('/api/subscription/current', bearer($admin))
+        ->assertOk()
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.is_on_trial', false)
+        ->assertJsonPath('data.expired', false);
+    // Access is not lost while the paid term waits for the trial's end date.
+    getJson('/api/pos/shifts/current', bearer($admin))->assertOk();
 });
 
 // ─── Subscription grace period ──────────────────────────────────────

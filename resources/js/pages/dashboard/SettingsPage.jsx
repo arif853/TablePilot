@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { subscriptionAPI, brandingAPI, plansAPI } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -231,6 +232,7 @@ function SubscriptionTab() {
     });
 
     const plans = Array.isArray(plansData) ? plansData : [];
+    const isOnTrial = !!data?.is_on_trial;
 
     useEffect(() => {
         if (!selectedPlanId && plans.length > 0) {
@@ -248,12 +250,23 @@ function SubscriptionTab() {
             }
 
             queryClient.invalidateQueries(['subscription-current']);
-            toast.success('Subscription renewed successfully');
+            toast.success(isOnTrial ? 'Subscription upgraded successfully' : 'Subscription renewed successfully');
         },
         onError: (err) => {
-            toast.error(err.response?.data?.message || 'Failed to start renewal');
+            toast.error(err.response?.data?.message || (isOnTrial ? 'Failed to start upgrade' : 'Failed to start renewal'));
         },
     });
+
+    // The payment gateway sends the owner back here with ?status=success|failed
+    useEffect(() => {
+        const status = new URLSearchParams(window.location.search).get('status');
+        if (status === 'success') {
+            toast.success('Payment received. Your subscription is active.');
+            queryClient.invalidateQueries(['subscription-current']);
+        } else if (status === 'failed') {
+            toast.error('Payment was not completed. Please try again.');
+        }
+    }, [queryClient]);
 
     if (isLoading) return <LoadingSpinner />;
 
@@ -264,7 +277,7 @@ function SubscriptionTab() {
             <SubscriptionStatusCard data={data} />
 
             <div className="card">
-                <h3 className="text-lg font-semibold mb-4">Quick Renewal</h3>
+                <h3 className="text-lg font-semibold mb-4">{isOnTrial ? 'Upgrade Your Plan' : 'Quick Renewal'}</h3>
                 <div className="flex flex-col sm:flex-row gap-2">
                     <select
                         className="input"
@@ -283,13 +296,13 @@ function SubscriptionTab() {
                         onClick={() => renewMutation.mutate()}
                         className="btn-primary whitespace-nowrap"
                     >
-                        {renewMutation.isPending ? 'Starting...' : 'Renew Now'}
+                        {renewMutation.isPending ? 'Starting...' : (isOnTrial ? 'Upgrade Now' : 'Renew Now')}
                     </button>
                 </div>
 
-                {needsRenewal && data?.is_on_trial && (
-                    <p className="text-xs text-amber-600 mt-3">
-                        Trial ends in {data.trial_days_remaining ?? 0} day(s).
+                {isOnTrial && (
+                    <p className="text-xs text-gray-500 mt-3">
+                        Your free trial has {data.trial_days_remaining ?? 0} day(s) left. Upgrading now keeps those days — your paid plan starts when the trial ends.
                     </p>
                 )}
             </div>
@@ -442,13 +455,18 @@ function VatSettingsTab() {
 }
 
 export default function SettingsPage() {
-    const [activeTab, setActiveTab] = useState('branding');
-
     const tabs = [
         { id: 'branding', label: 'Branding' },
         { id: 'vat', label: 'VAT Settings' },
         { id: 'subscription', label: 'Subscription' },
     ];
+
+    // Deep links such as /dashboard/settings?tab=subscription (trial "Upgrade Now") open that tab
+    const [searchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    const [activeTab, setActiveTab] = useState(
+        tabs.some((t) => t.id === requestedTab) ? requestedTab : 'branding'
+    );
 
     return (
         <div>

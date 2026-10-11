@@ -49,10 +49,19 @@ class SubscriptionService
                 'notes' => $paymentData['notes'] ?? null,
             ]);
 
-            $tenant->update([
+            $tenantUpdates = [
                 'is_active' => true,
                 'max_users' => $plan->max_users,
-            ]);
+            ];
+
+            // A paid subscription ends the trial; otherwise Tenant::isOnTrial() keeps
+            // reporting a trial and the "Free trial / Upgrade Now" banner never goes away.
+            // Any trial days still left are kept — the paid period starts when they end.
+            if (!$isTrial) {
+                $tenantUpdates['trial_ends_at'] = null;
+            }
+
+            $tenant->update($tenantUpdates);
 
             AuditLogger::log('subscription_created', $subscription, null, [
                 'tenant_id' => $tenant->id,
