@@ -29,10 +29,32 @@ class OrderController extends BaseApiController
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Order::with(['items.menuItem', 'table', 'voucher']);
+        $query = Order::with(['items.menuItem', 'table', 'voucher', 'servedBy:id,name']);
 
+        // One status or several, comma separated (status=placed,confirmed,preparing)
         if ($status = $request->get('status')) {
-            $query->where('status', $status);
+            $query->whereIn('status', explode(',', $status));
+        }
+
+        if ($request->boolean('delayed')) {
+            $query->delayed(Tenant::kitchenTargetMinutes(auth()->user()->tenant_id));
+        }
+
+        if ($area = $request->get('area')) {
+            $query->inArea($area);
+        }
+
+        if ($tableId = $request->get('table_id')) {
+            $query->where('table_id', $tableId);
+        }
+
+        if ($search = trim((string) $request->get('search'))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('customer_phone', 'like', "%{$search}%")
+                    ->orWhereHas('table', fn ($table) => $table->where('table_number', $search));
+            });
         }
 
         if ($type = $request->get('type')) {
@@ -57,6 +79,47 @@ class OrderController extends BaseApiController
         }
 
         return $this->paginated($query->latest(), $request->get('per_page', 20));
+    }
+
+    /**
+     * Counts for the orders page tabs. Live groups (in progress, ready, served, delayed)
+     * cover every open order; history groups (all, completed, cancelled) and sales cover
+     * the from/to days, today by default.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'area' => 'nullable|string|max:50',
+        ]);
+
+        $target = Tenant::kitchenTargetMinutes(auth()->user()->tenant_id);
+        $area = $request->get('area');
+
+        $base = fn () => Order::query()->when($area, fn ($q) => $q->inArea($area));
+        $inRange = fn () => $base()->dateRange($request->get('from', today()), $request->get('to', today()));
+
+        $live = $base()->whereIn('status', ['placed', 'confirmed', 'preparing', 'ready', 'served'])
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $history = $inRange()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        return $this->success([
+            'target_minutes' => $target,
+            'counts' => [
+                'all' => (int) $history->sum(),
+                'in_progress' => (int) (($live['placed'] ?? 0) + ($live['confirmed'] ?? 0) + ($live['preparing'] ?? 0)),
+                'ready' => (int) ($live['ready'] ?? 0),
+                'served' => (int) ($live['served'] ?? 0),
+                'delayed' => $base()->delayed($target)->count(),
+                'completed' => (int) ($history['completed'] ?? 0),
+                'cancelled' => (int) ($history['cancelled'] ?? 0),
+            ],
+            'sales' => round((float) $inRange()->where('status', '!=', 'cancelled')->sum('grand_total'), 2),
+        ]);
     }
 
     /**
@@ -152,7 +215,7 @@ class OrderController extends BaseApiController
 
     public function show(int $id): JsonResponse
     {
-        $order = Order::with(['items.menuItem', 'table', 'voucher'])->find($id);
+        $order = Order::with(['items.menuItem', 'table', 'voucher', 'servedBy:id,name'])->find($id);
 
         if (!$order) {
             return $this->notFound('Order not found');

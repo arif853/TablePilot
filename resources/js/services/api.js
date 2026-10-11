@@ -179,6 +179,7 @@ export const voucherAPI = {
 // Orders
 export const orderAPI = {
     list: (params) => api.get('/orders', { params }),
+    summary: (params) => api.get('/orders/summary', { params }),
     show: (id) => api.get(`/orders/${id}`),
     updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
     cancel: (id) => api.post(`/orders/${id}/cancel`),

@@ -69,6 +69,14 @@ class Tenant extends Model
         ];
     }
 
+    /**
+     * Minutes a kitchen ticket may run before it counts as delayed (Settings > Kitchen).
+     */
+    public static function kitchenTargetMinutes(?int $tenantId): int
+    {
+        return ($tenantId ? static::whereKey($tenantId)->value('kitchen_target_minutes') : null) ?? 20;
+    }
+
     // Relationships
     public function users()
     {

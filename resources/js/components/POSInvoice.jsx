@@ -69,7 +69,7 @@ export default function POSInvoice({ data, order: legacyOrder, restaurant: legac
     if (!orderNumber) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
             <div className="bg-white rounded-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 {/* Action buttons */}
                 <div className="flex items-center justify-between p-4 border-b bg-gray-50 rounded-t-2xl">

@@ -201,6 +201,7 @@ $v1Routes = function () {
             Route::get('tables/{id}/qr', [TableController::class, 'generateQrCode']);
 
             // Orders (restaurant-side management)
+            Route::get('orders/summary', [OrderController::class, 'summary']); // before orders/{order}
             Route::apiResource('orders', OrderController::class)->only(['index', 'show']);
             Route::patch('orders/{id}/status', [OrderController::class, 'updateStatus']);
 

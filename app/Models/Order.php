@@ -115,6 +115,19 @@ class Order extends Model
         return $query->whereNotIn('status', ['completed', 'cancelled']);
     }
 
+    /** Still in the kitchen (confirmed or cooking) for longer than the target time. */
+    public function scopeDelayed($query, int $targetMinutes)
+    {
+        return $query->whereIn('status', ['confirmed', 'preparing'])
+            ->where('created_at', '<', now()->subMinutes($targetMinutes));
+    }
+
+    /** Orders at a table in one floor area (takeaway orders have no area). */
+    public function scopeInArea($query, string $area)
+    {
+        return $query->whereHas('table', fn ($table) => $table->where('area', $area));
+    }
+
     public function scopeDineIn($query)
     {
         return $query->where('type', 'dine');

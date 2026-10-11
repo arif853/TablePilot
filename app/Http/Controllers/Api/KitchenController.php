@@ -14,7 +14,7 @@ class KitchenController extends BaseApiController
     /**
      * Minutes a ticket may run before it counts as delayed, until the restaurant sets its own.
      */
-    public const DEFAULT_TARGET_MINUTES = 20;
+    public const DEFAULT_TARGET_MINUTES = 20; // keep in step with the tenants.kitchen_target_minutes default
     public const MIN_TARGET_MINUTES = 5;
     public const MAX_TARGET_MINUTES = 120;
 
@@ -109,9 +109,7 @@ class KitchenController extends BaseApiController
             'on_time_rate' => $prepMinutes->isEmpty()
                 ? null
                 : (int) round($prepMinutes->filter(fn ($m) => $m <= $target)->count() / $prepMinutes->count() * 100),
-            'delayed' => Order::whereIn('status', ['confirmed', 'preparing'])
-                ->where('created_at', '<', now()->subMinutes($target))
-                ->count(),
+            'delayed' => Order::delayed($target)->count(),
         ]);
     }
 
@@ -145,7 +143,6 @@ class KitchenController extends BaseApiController
 
     private function targetMinutes(): int
     {
-        return Tenant::whereKey(auth()->user()->tenant_id)->value('kitchen_target_minutes')
-            ?? self::DEFAULT_TARGET_MINUTES;
+        return Tenant::kitchenTargetMinutes(auth()->user()->tenant_id);
     }
 }

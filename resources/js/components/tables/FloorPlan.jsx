@@ -12,7 +12,7 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
  * Scaled floor-plan canvas for one area. In edit mode tables can be dragged (or
  * nudged with the arrow keys once focused); a press without movement still selects.
  */
-export default function FloorPlan({ tables, positions, editing, zoom, selectedId, isMatch, now, onSelect, onMove }) {
+export default function FloorPlan({ tables, positions, editing, zoom = 1, selectedId, isMatch = () => true, now, onSelect, onMove, minScale = MIN_SCALE }) {
     const wrapRef = useRef(null);
     const dragRef = useRef(null);
     const [width, setWidth] = useState(FLOOR_WIDTH);
@@ -26,7 +26,7 @@ export default function FloorPlan({ tables, positions, editing, zoom, selectedId
         return () => observer.disconnect();
     }, []);
 
-    const scale = Math.max(width / FLOOR_WIDTH, MIN_SCALE) * zoom;
+    const scale = Math.max(width / FLOOR_WIDTH, minScale) * zoom;
     const height = floorHeight(tables, positions);
 
     const constrain = (table, x, y) => {
